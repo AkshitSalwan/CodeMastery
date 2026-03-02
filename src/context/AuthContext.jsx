@@ -10,26 +10,60 @@ const MOCK_USER = {
   bio: 'Data structures and algorithms enthusiast',
   createdAt: new Date('2024-01-01'),
   bookmarkedProblems: ['1', '5', '8'],
+  role: 'user',
+  totalPoints: 2450,
+  streak: 12,
+  problemsSolved: 85,
+};
+
+const MOCK_INTERVIEWER = {
+  id: 'interviewer-1',
+  name: 'Sarah Chen',
+  email: 'sarah@interviewer.com',
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+  bio: 'Senior Technical Interviewer',
+  createdAt: new Date('2024-02-01'),
+  role: 'interviewer',
+  organization: 'Tech Corp',
+  totalCandidatesInterviewed: 42,
+  contestsCreated: 8,
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(MOCK_USER);
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const login = (role, credentials) => {
+    if (role === 'user') {
+      setUser(MOCK_USER);
+    } else if (role === 'interviewer') {
+      setUser(MOCK_INTERVIEWER);
+    }
+    setIsAuthenticated(true);
+  };
+
+  const logout = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+  };
 
   const toggleBookmark = (problemId) => {
-    setUser(prev => ({
-      ...prev,
-      bookmarkedProblems: prev.bookmarkedProblems.includes(problemId)
-        ? prev.bookmarkedProblems.filter(id => id !== problemId)
-        : [...prev.bookmarkedProblems, problemId],
-    }));
+    if (user?.role === 'user') {
+      setUser(prev => ({
+        ...prev,
+        bookmarkedProblems: prev.bookmarkedProblems.includes(problemId)
+          ? prev.bookmarkedProblems.filter(id => id !== problemId)
+          : [...prev.bookmarkedProblems, problemId],
+      }));
+    }
   };
 
   const isBookmarked = (problemId) => {
-    return user.bookmarkedProblems.includes(problemId);
+    return user?.bookmarkedProblems?.includes(problemId) || false;
   };
 
   return (
-    <AuthContext.Provider value={{ user, toggleBookmark, isBookmarked }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, toggleBookmark, isBookmarked }}>
       {children}
     </AuthContext.Provider>
   );
