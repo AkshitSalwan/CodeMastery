@@ -1,258 +1,199 @@
-# CodeMastery - LeetCode-Style DSA Platform
+# 💻 CodeMastery - DSA and Interview Platform
+<div align="center">
+<img src="https://github.com/user-attachments/assets/f75964ce-d558-4b82-a66b-302f5acc4a3f" alt="CodeMastery Preview" width="400">
+</div>
 
-A comprehensive Data Structures & Algorithms (DSA) learning platform built with **React**, **Vite**, **Express**, **Sequelize**, and Tailwind CSS. Features interactive problem solving, code editor, gamification, and community discussions.
+## ✨ Overview
 
-## Features
+CodeMastery is a comprehensive Data Structures & Algorithms (DSA) learning platform designed to mimic the professional experience of sites like LeetCode. Built with a modern stack including React, Node.js, and Sequelize, it features an interactive Monaco code editor, real-time feedback, gamified progression, and a robust library of 500+ problems.
 
-### Core Features
-- **User Authentication**: Mock authentication system with login/signup (localStorage-based)
-- **Problem Library**: 500+ DSA problems with filtering by difficulty, category, and company
-- **Interactive Code Editor**: Monaco editor with syntax highlighting for JS, Python, Java, C++
-- **Run & Submit**: Mock code execution with test case results and performance metrics
-- **Gamification**: Streaks, levels, XP system, and achievement badges
-- **Daily Challenge**: Rotates problems daily with bonus rewards
-- **Learning Resources**: Progressive hints, optimal solutions, and AI-powered explanations
-- **Community Discussions**: Problem-specific discussion threads with upvoting
-- **User Dashboard**: Stats overview, progress tracking, and profile management
-- **Responsive Design**: Mobile-first design with dark/light mode support
+---
 
-### Technology Stack
-- **Framework**: React with Vite (no Next.js)
-- **Language**: TypeScript
-- **UI Components**: shadcn/ui with Radix UI
-- **Code Editor**: Monaco Editor
-- **Styling**: Tailwind CSS 4.2
-- **Theming**: Context API
+<div align="center">
+<table>
+<tr>
+<td><b>Frontend</b></td>
+<td>React 18, Vite, Tailwind CSS 4.2, shadcn/ui</td>
+</tr>
+<tr>
+<td><b>Backend</b></td>
+<td>Express.js, Node.js, Sequelize ORM</td>
+</tr>
+<tr>
+<td><b>Editor</b></td>
+<td>Monaco Editor (VS Code Engine)</td>
+</tr>
+<tr>
+<td><b>Database</b></td>
+<td>PostgreSQL / MySQL (via Sequelize)</td>
+</tr>
+</table>
+</div>
 
-## Development setup
+---
 
-1. Install dependencies:
+## 🌟 Features
+
+- **🚀 Interactive Coding Environment**
+  - Multi-language support: JS, Python, Java, C++
+  - Integrated Monaco Editor with syntax highlighting 
+  - Mock "Run & Submit" engine with performance metrics
+
+- **🎮 Gamification & Engagement**
+  - Daily Challenges with bonus XP
+  - Achievement badges and leveling system
+  - Streak tracking to maintain learning consistency
+
+- **📚 Problem Library**
+  - 500+ problems categorized by difficulty and topic
+  - Advanced filtering by Company (FAANG) and Tags  
+  - Community discussion threads and upvoting  
+
+- **🤖 AI-Powered Learning**
+  - rogressive hints and optimal solution explanations 
+  - AI-driven code analysis and performance suggestions
+  - Personalized user dashboard for progress tracking
+
+
+## 🛠️ Tech Stack
+
+| Category         | Technologies                                                                                                           |
+|------------------|-----------------------------------------------------------------------------------------------------------------------|
+| **Frontend**      |<img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black" /> <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" /> <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" /> |
+| **Backend**     |<img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white" /> <img src="https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white" />|
+| **ORM/Database**   |<img src="https://img.shields.io/badge/Sequelize-52B0E7?style=for-the-badge&logo=sequelize&logoColor=white" /> <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" /> |
+| **UI Components**   | <img src="https://img.shields.io/badge/shadcn/ui-000000?style=for-the-badge&logo=shadcnui&logoColor=white" /> <img src="https://img.shields.io/badge/Lucide_Icons-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" />|
+| **Editor** |<img src="https://img.shields.io/badge/Monaco_Editor-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white" /> |
+
+---
+
+## 📁 Directory Structure
+
+```
+Elara-Regency/
+├── 📂 api/                    # API routes for data handling
+├── 📂 middlewares/            # Application middleware
+│   ├── index.js               # Exports all middleware
+│   ├── authMiddleware.js      # Authentication middleware
+│   ├── performanceMiddleware.js # Performance optimization
+│   └── securityMiddleware.js  # Security enhancements
+├── 📂 models/                 # Database models
+│   ├── User.js                # User schema and model
+│   ├── Reservation.js         # Reservation schema and model
+│   ├── ContactMessage.js      # Contact message schema and model
+│   └── users.json             # Sample user data
+├── 📂 node_modules/           # Node.js dependencies
+├── 📂 public/                 # Static assets
+│   ├── css/                   # Stylesheets
+│   ├── js/                    # Client-side JavaScript
+│   └── images/                # Image assets
+├── 📂 views/                  # EJS templates
+│   ├── 404.ejs               # 404 page
+│   ├── about.ejs             # About page
+│   ├── admin-dashboard.ejs   # Admin dashboard
+│   ├── blog.ejs              # Blog page
+│   ├── contact.ejs           # Contact page
+│   ├── error.ejs             # Error page
+│   ├── home.ejs              # Home page
+│   ├── location-detail.ejs   # Location detail page
+│   ├── locations.ejs         # Locations page
+│   ├── login.ejs             # Login page
+│   ├── profile.ejs           # User profile page
+│   ├── register.ejs          # Register page
+│   ├── reservation.ejs       # Reservation page
+│   └── rooms.ejs             # Rooms page
+├── 📂 .git/                   # Git repository files
+├── 📄 package.json            # Project metadata and dependencies
+├── 📄 package-lock.json       # Dependency lock file
+├── 📄 README.md               # Project documentation
+└── 📄 server.js               # Main server file
+```
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js (v14.x or higher)
+- MongoDB Atlas account
+- Git
+
+### Installation
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/AkshitSalwan/CodeMastery
+   cd elara-regency
+   ```
+
+2. **Install Dependencies**:
    ```bash
    npm install
    ```
-2. To start both client and server in development:
-   ```bash
-   npm run dev
+
+3. **Set Up Environment Variables**:
+   Create a `.env` file in the root directory:
    ```
-   - Frontend runs on [http://localhost:3000](http://localhost:3000)
-   - Express backend runs on [http://localhost:4000](http://localhost:4000)
-3. Build the frontend for production:
-   ```bash
-   npm run build
+   MONGO_URI=mongodb+srv://your-username:your-password@cluster0.example.mongodb.net/?retryWrites=true&w=majority
+   PORT=3000
+   SESSION_SECRET=your_secret_key
    ```
-4. Start the server in production mode (it will serve the built files):
+
+4. **Run the Application**:
    ```bash
    npm start
    ```
 
-Routes are handled by React Router on the client; backend API endpoints live under `/api` and are implemented using Express and Sequelize.
+   The server will start at http://localhost:3000
+---
 
-- **Icons**: Lucide React
+## 🧭 Usage Guide
 
-## Project Structure
+- **🏠 Dashboard**: View your current streak, level, and solved problem stats.
+- **📝 Register/Login**: Create an account or sign in
+- **👤 Profile**: View your details and reservation history
+- **💻 Problem Solving**: Select a problem, choose your language (JS/Python/Java), and use the Monaco editor to write your solution.
+- **🏆 Achievements:**: Check your progress on badges like "7-Day Streak" or "DP Master."
+- **💬 Discussions**: Post questions or view alternative solutions in the problem discussion tab.
 
-```
-/app
-├── (dashboard)/           # Protected dashboard routes
-│   ├── page.tsx          # Dashboard home
-│   ├── problems/         # Problem list and detail pages
-│   ├── profile/          # User profile
-│   ├── achievements/     # Achievements page
-│   ├── daily-challenge/  # Daily challenge
-│   └── settings/         # Settings page
-├── auth/                 # Authentication pages
-│   ├── login/
-│   └── signup/
-└── page.tsx             # Landing page
+## 💾 Database Setup
 
-/components
-├── editor/              # Code editor components
-├── problems/            # Problem-related components
-├── dashboard/           # Dashboard components
-├── ai/                  # AI features
-├── navbar.tsx           # Top navigation
-└── sidebar.tsx          # Dashboard sidebar
+1. **Create MongoDB Atlas Account**:
+   - Sign up at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+   - Create a new cluster
 
-/lib
-├── types/               # TypeScript type definitions
-├── mock-data/           # Mock data for problems, users, etc.
-├── mock-api/            # Mock API functions (executor, etc.)
-├── contexts/            # React contexts (auth)
-└── editor-utils.ts      # Editor utility functions
-```
+2. **Configure Database Access**:
+   - Create a database user
+   - Set up network access (IP whitelist)
 
-## Getting Started
+3. **Get Connection String**:
+   - Navigate to "Connect" > "Connect your application"
+   - Copy the connection string and update your `.env` file
+---
 
-### Prerequisites
-- Node.js 18+
-- npm/pnpm
+## 🔒 Security Features
 
-### Installation
+- **Password Protection**: All passwords are hashed using bcrypt
+- **HTTP Security**: Helmet middleware for securing HTTP headers
+- **CORS Protection**: Configured to prevent cross-origin issues
+- **Input Validation**: Sanitization of user inputs
+- **Authentication**: Protected routes with auth middleware
+---
 
-1. Clone the project
-2. Install dependencies:
-```bash
-pnpm install
-```
+## 🤝 Contributing
 
-3. Run the development server:
-```bash
-pnpm dev
-```
-
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-### Demo Credentials
-- **Email**: Any email format
-- **Password**: Any password with 6+ characters
-
-The app uses mock authentication, so any email/password combination will work.
-
-## Usage
-
-### Landing Page
-- View project overview and features
-- Sign up or log in links
-
-### Dashboard
-- View stats: problems solved, streak, level, achievements
-- Quick links to daily challenge and problem list
-
-### Problems
-- Browse all DSA problems with filtering
-- Filter by difficulty (Easy/Medium/Hard)
-- Filter by topics (Array, Tree, Graph, DP, etc.)
-- Filter by companies
-- Search by problem name
-
-### Problem Detail
-- View full problem description
-- See constraints and examples
-- Start solving with "Solve" button
-- Access discussion threads
-
-### Code Editor
-- Write code in multiple languages (JS, Python, Java, C++)
-- Run code against sample test cases
-- Submit code for full evaluation
-- See detailed test results
-- Access problem hints and solutions
-
-### Achievements
-- Track unlocked badges and milestones
-- View streak history
-- Monitor progress toward achievements
-- See locked achievements with progress
-
-### Daily Challenge
-- Solve a new problem each day
-- Maintain solving streak
-- Get bonus XP for completing
-- View challenge statistics
-
-### Profile
-- View account information
-- Edit profile details
-- See personal stats and achievements
-- Track level and experience
-
-## Mock Data
-
-The platform includes extensive mock data:
-
-- **30+ DSA Problems** with full descriptions, constraints, and examples
-- **Multiple Language Support** with starter code for each problem
-- **Mock Test Cases** for execution simulation
-- **User Stats & Achievements** with streak tracking
-- **Discussion Threads** with comments and upvoting
-
-## Architecture Notes
-
-### Authentication
-Uses localStorage-based mock authentication. In production, this would be replaced with a real auth service (Auth0, Firebase, etc.)
-
-### Code Execution
-Mock execution simulates compilation and test results. In production, this would call a real code execution service (judge servers).
-
-### State Management
-Uses React hooks and Context API for global state (auth). Can be extended with Redux or Zustand for more complex state.
-
-### Data Persistence
-All data is stored in localStorage (except Monaco editor, which uses sessionStorage). In production, would use a database.
-
-## Customization
-
-### Adding More Problems
-Edit `/lib/mock-data/problems.ts` and add new problem objects following the existing structure.
-
-### Changing Theme Colors
-Update design tokens in `/app/globals.css`:
-```css
-:root {
-  --accent: #06b6d4; /* Cyan accent */
-  --primary: #0f172a; /* Dark slate */
-  /* ... more tokens */
-}
-```
-
-### Adding New Languages
-1. Add to `Language` type in `/lib/types/problem.ts`
-2. Add starter code to problems in `/lib/mock-data/problems.ts`
-3. Update `languageInfo` and `monacoLanguages` in `/lib/editor-utils.ts`
-
-### Modifying Mock Execution
-Edit `/lib/mock-api/executor.ts` to change how code execution is simulated.
-
-## Features Roadmap
-
-### Completed
-- Authentication & authorization
-- Problem library with filtering
-- Monaco code editor
-- Run & submit functionality
-- Gamification (streaks, levels, achievements)
-- Daily challenges
-- Discussion threads
-- User profiles
-
-### Potential Enhancements
-- Real backend integration
-- Actual code execution service
-- AI-powered hints using LLMs
-- Video tutorials
-- Interview prep mode
-- Company-specific paths
-- Contest/competition system
-- Leaderboards with social features
-- Mobile app
-- Real-time collaboration
-
-## Performance Considerations
-
-- Monaco editor loaded dynamically to reduce initial bundle
-- Problem list uses pagination-ready component structure
-- CSS-in-JS minimized through Tailwind utilities
-- Dark mode switch uses system preferences with override option
-
-## Browser Support
-
-- Chrome/Chromium (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-
-## Contributing
-
-This is a demo project, but improvements are welcome. Feel free to extend features or fix any issues.
-
-## License
-
-MIT License - feel free to use for learning or personal projects.
-
-## Support
-
-For issues or questions, refer to the documentation in this README or examine the component code which is well-commented.
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature-branch`)
+3. Make your changes and commit (`git commit -m "Add feature"`)
+4. Push to the branch (`git push origin feature-branch`)
+5. Create a Pull Request
 
 ---
 
-**Built with v0** - A full-stack web development assistant powered by Vercel AI SDK
+## 📜 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+⭐ **Star this repository if you find it useful!** ⭐
