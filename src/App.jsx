@@ -36,6 +36,7 @@ import { DailyChallengesPage } from "./pages/DailyChallengesPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { ContestsPage } from "./pages/ContestsPage";
 import { TestBuilderPage } from "./pages/TestBuilderPage";
+import { CreateContestPage } from "./pages/CreateContestPage";
 
 /* =========================
    Protected Route
@@ -151,6 +152,7 @@ function AppContent() {
                       <Route path="/daily-challenges" element={<DailyChallengesPage />} />
                       <Route path="/leaderboard" element={<LeaderboardPage />} />
                       <Route path="/contests" element={<ContestsPage />} />
+                      <Route path="/contests/new" element={<CreateContestPage />} />
                       <Route path="/make-test" element={<TestBuilderPage />} />
                     </Routes>
                   </div>
