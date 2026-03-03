@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { DAILY_CHALLENGES } from '../data/achievements';
@@ -150,14 +151,18 @@ export function DailyChallengesPage() {
                     </div>
 
                     {/* Action Button */}
-                    <Button
-                      className="ml-4 whitespace-nowrap"
-                      onClick={e => {
-                        e.stopPropagation();
-                      }}
+                    <Link
+                      to={
+                        challenge.completed
+                          ? `/problems/${challenge.problem.id}/review`
+                          : `/problems/${challenge.problem.id}/editor`
+                      }
+                      onClick={e => e.stopPropagation()}
                     >
-                      {challenge.completed ? 'Review' : 'Solve'}
-                    </Button>
+                      <Button className="ml-4 whitespace-nowrap">
+                        {challenge.completed ? 'Review' : 'Solve'}
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -242,9 +247,17 @@ export function DailyChallengesPage() {
                 )}
 
                 {/* Action Button */}
-                <Button className="w-full">
-                  {selectedChallenge.completed ? 'View Solution' : 'Start Challenge'}
-                </Button>
+                <Link
+                  to={
+                    selectedChallenge.completed
+                      ? `/problems/${selectedChallenge.problem.id}/review`
+                      : `/problems/${selectedChallenge.problem.id}/editor`
+                  }
+                >
+                  <Button className="w-full">
+                    {selectedChallenge.completed ? 'View Solution' : 'Start Challenge'}
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           ) : (

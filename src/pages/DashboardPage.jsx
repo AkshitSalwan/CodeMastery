@@ -1,15 +1,27 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Link } from 'react-router-dom';
-import { Flame, Trophy, Zap, Code2 } from 'lucide-react';
+import { Flame, Trophy, Zap, Code2, Briefcase, FileText, Calendar, Users } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export function DashboardPage() {
-  const stats = [
+  const { user } = useAuth();
+
+  const userStats = [
     { label: 'Problems Solved', value: '24', icon: Code2, color: 'text-blue-500' },
     { label: 'Current Streak', value: '7', icon: Flame, color: 'text-orange-500' },
     { label: 'Level', value: '12', icon: Zap, color: 'text-yellow-500' },
     { label: 'Achievements', value: '8', icon: Trophy, color: 'text-purple-500' },
   ];
+
+  const interviewerStats = [
+    { label: 'Tests Conducted', value: '42', icon: Briefcase, color: 'text-blue-500' },
+    { label: 'Questions Created', value: '128', icon: FileText, color: 'text-green-500' },
+    { label: 'Contests', value: '7', icon: Calendar, color: 'text-orange-500' },
+    { label: 'Interviews', value: '19', icon: Users, color: 'text-purple-500' },
+  ];
+
+  const stats = user?.role === 'interviewer' ? interviewerStats : userStats;
 
   return (
     <div className="space-y-8">
@@ -43,18 +55,37 @@ export function DashboardPage() {
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-4">Quick Actions</h2>
           <div className="grid md:grid-cols-2 gap-4">
-            <Link to="/problems">
-              <Button className="w-full">
-                <Code2 className="h-4 w-4 mr-2" />
-                Solve Problems
-              </Button>
-            </Link>
-            <Link to="/daily-challenge">
-              <Button variant="outline" className="w-full">
-                <Flame className="h-4 w-4 mr-2" />
-                Daily Challenge
-              </Button>
-            </Link>
+            {user?.role === 'interviewer' ? (
+              <>
+                <Link to="/add-question">
+                  <Button className="w-full">
+                    <FileText className="h-4 w-4 mr-2" />
+                    New Problem
+                  </Button>
+                </Link>
+                <Link to="/contests">
+                  <Button variant="outline" className="w-full">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Manage Contests
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/problems">
+                  <Button className="w-full">
+                    <Code2 className="h-4 w-4 mr-2" />
+                    Solve Problems
+                  </Button>
+                </Link>
+                <Link to="/daily-challenges">
+                  <Button variant="outline" className="w-full">
+                    <Flame className="h-4 w-4 mr-2" />
+                    Daily Challenge
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

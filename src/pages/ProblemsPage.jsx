@@ -1,16 +1,19 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent } from '../components/Card';
-import { Badge } from '../components/Badge';
-import { Button } from '../components/Button';
-import { BookmarkButton } from '../components/BookmarkButton';
-import { problems } from '../data/problems';
-import { ArrowRight } from 'lucide-react';
 
 export function ProblemsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('All');
   const [filterCategory, setFilterCategory] = useState('All');
+  const [customQuestions, setCustomQuestions] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const stored = localStorage.getItem('customQuestions');
+    if (stored) {
+      setCustomQuestions(JSON.parse(stored));
+    }
+  }, []);
+
+  const allProblems = [...defaultProblems, ...customQuestions];
 
   const difficultyColor = {
     Easy: 'bg-green-500/20 text-green-700 dark:text-green-400',
@@ -18,7 +21,7 @@ export function ProblemsPage() {
     Hard: 'bg-red-500/20 text-red-700 dark:text-red-400',
   };
 
-  const filtered = problems.filter(
+  const filtered = allProblems.filter(
     (problem) =>
       (problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         problem.description.toLowerCase().includes(searchTerm.toLowerCase())) &&
@@ -26,11 +29,23 @@ export function ProblemsPage() {
       (filterCategory === 'All' || problem.category.includes(filterCategory))
   );
 
+  const handleAddQuestion = () => {
+    navigate('/add-question');
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Problems</h1>
-        <p className="text-muted-foreground">Solve {problems.length} amazing DSA problems</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Problems</h1>
+          <p className="text-muted-foreground">Solve {allProblems.length} amazing DSA problems</p>
+        </div>
+        <button
+          className="bg-accent text-white px-4 py-2 rounded"
+          onClick={handleAddQuestion}
+        >
+          Add Question
+        </button>
       </div>
 
       {/* Filters */}
@@ -42,7 +57,6 @@ export function ProblemsPage() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground"
         />
-
         <div className="flex gap-4 flex-wrap">
           <div>
             <label className="text-sm text-muted-foreground">Difficulty</label>
@@ -57,7 +71,6 @@ export function ProblemsPage() {
               <option>Hard</option>
             </select>
           </div>
-
           <div>
             <label className="text-sm text-muted-foreground">Category</label>
             <select

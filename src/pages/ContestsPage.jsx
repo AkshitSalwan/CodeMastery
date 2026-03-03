@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
@@ -243,18 +244,34 @@ export function ContestsPage() {
                           </div>
                         )}
                       </div>
-                      <Button
-                        onClick={e => {
-                          e.stopPropagation();
-                        }}
-                        className="bg-accent text-accent-foreground hover:bg-accent/90"
-                      >
-                        {contest.participationStatus === 'joined'
-                          ? 'View'
-                          : contest.status === 'completed'
-                            ? 'View Results'
-                            : 'Join'}
-                      </Button>
+                      {contest.participationStatus === 'joined' ? (
+                        <Link
+                          to={`/problems/${contest.problems[0]}/editor`}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
+                            View
+                          </Button>
+                        </Link>
+                      ) : contest.status === 'completed' ? (
+                        <Link
+                          to={`/contests/${contest.id}/results`}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
+                            View Results
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button
+                          onClick={e => {
+                            e.stopPropagation();
+                          }}
+                          className="bg-accent text-accent-foreground hover:bg-accent/90"
+                        >
+                          Join
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -322,6 +339,23 @@ export function ContestsPage() {
                     </div>
                   )}
 
+                  {/* Problems List */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2">Problems</p>
+                    <ul className="space-y-2">
+                      {selectedContest.problems.map(pid => {
+                        const problem = require('../data/problems').problems.find(p => p.id === pid);
+                        return problem ? (
+                          <li key={pid} className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground">{problem.title}</span>
+                            <Link to={`/problems/${pid}/editor`}>
+                              <Button size="sm">Solve</Button>
+                            </Link>
+                          </li>
+                        ) : null;
+                      })}
+                    </ul>
+                  </div>
                   {/* Tags */}
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground mb-2">Topics</p>

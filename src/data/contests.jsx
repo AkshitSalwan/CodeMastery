@@ -22,7 +22,8 @@ export const CONTESTS = [
       second: '$300',
       third: '$200',
     },
-    problems: ['1', '2', '3', '5', '8'],
+    // 5 medium LeetCode problems
+    problems: ['2', '3', '6', '7', '9'],
     rules: [
       'Each problem has a 5-minute time limit',
       'All submissions are checked against 50+ test cases',

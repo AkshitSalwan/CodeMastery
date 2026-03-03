@@ -1,34 +1,11 @@
 const express = require('express');
-const { Sequelize } = require('sequelize');
 
 // initialize express
 const app = express();
 app.use(express.json());
 
-// setup sequelize using sqlite for simplicity; you can switch dialect to postgres/mysql later
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: 'database.sqlite',
-  logging: false,
-});
-
-// import models and sync
-const db = require('./models');
-
-(async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('Sequelize connection established successfully.');
-
-    // load models (example user model already in place)
-    db.models.User = require('./models/user')(sequelize, require('sequelize').DataTypes);
-
-    await sequelize.sync({ alter: true });
-    console.log('Database synced');
-  } catch (err) {
-    console.error('Database error:', err);
-  }
-})();
+// Temporarily skip database setup due to sqlite3 binding issues
+// TODO: Fix sqlite3 native bindings or use better-sqlite3
 
 // basic route
 app.get('/api/health', (req, res) => {
@@ -44,7 +21,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });
