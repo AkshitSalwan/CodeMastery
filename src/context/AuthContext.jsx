@@ -14,6 +14,10 @@ const MOCK_USER = {
   totalPoints: 2450,
   streak: 12,
   problemsSolved: 85,
+  preferences: {
+    emailNotifications: true,
+    theme: 'light',
+  },
 };
 
 const MOCK_INTERVIEWER = {
@@ -27,24 +31,51 @@ const MOCK_INTERVIEWER = {
   organization: 'Tech Corp',
   totalCandidatesInterviewed: 42,
   contestsCreated: 8,
+  preferences: {
+    emailNotifications: true,
+    theme: 'light',
+  },
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('currentUser');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!user);
 
   const login = (role, credentials) => {
+    let u = null;
     if (role === 'user') {
-      setUser(MOCK_USER);
+      u = MOCK_USER;
     } else if (role === 'interviewer') {
-      setUser(MOCK_INTERVIEWER);
+      u = MOCK_INTERVIEWER;
     }
-    setIsAuthenticated(true);
+    if (u) {
+      setUser(u);
+      setIsAuthenticated(true);
+      localStorage.setItem('currentUser', JSON.stringify(u));
+    }
   };
 
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem('currentUser');
+  };
+
+  // update user profile data (mock implementation)
+  const updateUser = (updates) => {
+    setUser((prev) => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem('currentUser', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   };
 
   const toggleBookmark = (problemId) => {
@@ -62,8 +93,17 @@ export function AuthProvider({ children }) {
     return user?.bookmarkedProblems?.includes(problemId) || false;
   };
 
+  // keep localStorage in sync when user changes (in case other logic updates it)
+  React.useEffect(() => {
+    if (user) {
+      try {
+        localStorage.setItem('currentUser', JSON.stringify(user));
+      } catch {}
+    }
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, toggleBookmark, isBookmarked }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, toggleBookmark, isBookmarked, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

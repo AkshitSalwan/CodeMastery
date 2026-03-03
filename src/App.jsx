@@ -37,6 +37,7 @@ import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { ContestsPage } from "./pages/ContestsPage";
 import { TestBuilderPage } from "./pages/TestBuilderPage";
 import { CreateContestPage } from "./pages/CreateContestPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
 /* =========================
    Protected Route
@@ -154,6 +155,7 @@ function AppContent() {
                       <Route path="/contests" element={<ContestsPage />} />
                       <Route path="/contests/new" element={<CreateContestPage />} />
                       <Route path="/make-test" element={<TestBuilderPage />} />
+                      <Route path="/settings" element={<SettingsPage />} />
                     </Routes>
                   </div>
                 </main>

@@ -22,8 +22,19 @@ export function ThemeProvider({ children }) {
     setTheme(t => t === 'dark' ? 'light' : 'dark');
   };
 
+  const setExplicitTheme = (value) => {
+    if (value === 'light' || value === 'dark' || value === 'system') {
+      if (value === 'system') {
+        const sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        setTheme(sys);
+      } else {
+        setTheme(value);
+      }
+    }
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme: setExplicitTheme }}>
       {children}
     </ThemeContext.Provider>
   );
