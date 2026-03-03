@@ -1,14 +1,30 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { TrendingUp, Users, Code2, MessageSquare } from 'lucide-react';
+import { TrendingUp, Users, Code2, MessageSquare, FileText, Target, Calendar, Briefcase } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export function AdminPage() {
-  const kpiData = [
+  const { user } = useAuth();
+  const isInterviewer = user?.role === 'interviewer';
+
+  // Platform-wide KPIs
+  const platformKPIData = [
     { label: 'Total Users', value: '2,543', change: '+12%', icon: Users, color: 'text-blue-500' },
     { label: 'Total Problems', value: '847', change: '+8%', icon: Code2, color: 'text-green-500' },
     { label: 'Submissions', value: '156K', change: '+23%', icon: TrendingUp, color: 'text-purple-500' },
     { label: 'Feedback', value: '342', change: '+5%', icon: MessageSquare, color: 'text-orange-500' },
   ];
+
+  // Interviewer-specific KPIs
+  const interviewerKPIData = [
+    { label: 'Contests Created', value: '8', change: '+2', icon: Target, color: 'text-blue-500' },
+    { label: 'Problems Created', value: '127', change: '+15', icon: FileText, color: 'text-green-500' },
+    { label: 'Candidates Interviewed', value: '42', change: '+5', icon: Users, color: 'text-purple-500' },
+    { label: 'Active Contests', value: '3', change: 'on-going', icon: Calendar, color: 'text-orange-500' },
+  ];
+
+  const kpiData = isInterviewer ? interviewerKPIData : platformKPIData;
+
 
   const activityData = [
     { day: 'Mon', submissions: 240 },
@@ -45,8 +61,12 @@ export function AdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Platform analytics and insights</p>
+        <h1 className="text-4xl font-bold text-foreground mb-2">
+          {isInterviewer ? 'Interviewer Dashboard' : 'Admin Dashboard'}
+        </h1>
+        <p className="text-muted-foreground">
+          {isInterviewer ? 'Manage contests and problems' : 'Platform analytics and insights'}
+        </p>
       </div>
 
       {/* KPI Cards */}
@@ -60,7 +80,7 @@ export function AdminPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">{kpi.label}</p>
                     <p className="text-3xl font-bold text-foreground mt-2">{kpi.value}</p>
-                    <p className="text-xs text-green-500 mt-2">{kpi.change} from last month</p>
+                    <p className="text-xs text-green-500 mt-2">{kpi.change}</p>
                   </div>
                   <Icon className={`h-8 w-8 opacity-50 ${kpi.color}`} />
                 </div>
@@ -70,8 +90,60 @@ export function AdminPage() {
         })}
       </div>
 
-      {/* Charts */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      {isInterviewer ? (
+        // INTERVIEWER VIEW
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Active Contests */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Active Contests</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[
+                  { id: 1, name: 'Weekly Challenge #5', problems: 5, participants: 234 },
+                  { id: 2, name: 'Trees & Graphs Mastery', problems: 8, participants: 156 },
+                  { id: 3, name: 'Dynamic Programming Sprint', problems: 10, participants: 89 },
+                ].map((contest) => (
+                  <div key={contest.id} className="pb-4 border-b border-border last:border-b-0">
+                    <p className="font-semibold text-foreground">{contest.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {contest.problems} problems • {contest.participants} participants
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Problems Created */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Problems Created</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[
+                  { id: 1, title: 'Longest Palindromic Substring', difficulty: 'Medium', created: '2 days ago' },
+                  { id: 2, title: 'Course Schedule IV', difficulty: 'Hard', created: '1 week ago' },
+                  { id: 3, title: 'Majority Element', difficulty: 'Easy', created: '2 weeks ago' },
+                ].map((problem) => (
+                  <div key={problem.id} className="pb-4 border-b border-border last:border-b-0">
+                    <p className="font-semibold text-foreground">{problem.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {problem.difficulty} • {problem.created}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        // ADMIN VIEW
+        <div className="space-y-6">
+          {/* Charts */}
+          <div className="grid lg:grid-cols-2 gap-6">
         {/* Activity Chart */}
         <Card>
           <CardHeader>
@@ -149,33 +221,39 @@ export function AdminPage() {
         </CardContent>
       </Card>
 
-      {/* Recent Feedback */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Feedback</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentFeedback.map((feedback) => (
-              <div key={feedback.id} className="pb-4 border-b border-border last:border-b-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-foreground">{feedback.user}</p>
-                    <p className="text-sm text-muted-foreground">{feedback.message}</p>
-                  </div>
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className={i < feedback.rating ? 'text-yellow-400' : 'text-muted-foreground'}>
-                        ★
-                      </span>
-                    ))}
+      {/* Recent Feedback - Admin only */}
+      {!isInterviewer && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Feedback</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentFeedback.map((feedback) => (
+                <div key={feedback.id} className="pb-4 border-b border-border last:border-b-0">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-semibold text-foreground">{feedback.user}</p>
+                      <p className="text-sm text-muted-foreground">{feedback.message}</p>
+                    </div>
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <span key={i} className={i < feedback.rating ? 'text-yellow-400' : 'text-muted-foreground'}>
+                          ★
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+        </div>
+      )}
+
     </div>
   );
 }
+

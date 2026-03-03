@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/Card';
 import { Badge } from '../components/Badge';
 
@@ -40,6 +41,7 @@ export function TopicsPage() {
 
   return (
     <div className="space-y-6">
+      {/* when user clicks a topic navigate to its detail page */}
       <div>
         <h1 className="text-4xl font-bold text-foreground mb-2">Topics</h1>
         <p className="text-muted-foreground">Explore {stats.total} topics with {stats.problems} problems</p>
@@ -79,18 +81,24 @@ export function TopicsPage() {
       {/* Topics Grid */}
       <div className="grid md:grid-cols-2 gap-4">
         {filtered.map((topic) => (
-          <Card key={topic.name} className="hover:border-accent transition-colors cursor-pointer">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-bold text-foreground">{topic.name}</h3>
-                <Badge variant="outline" className={difficultyColor[topic.difficulty]}>
-                  {topic.difficulty}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">{topic.description}</p>
-              <p className="text-xs text-muted-foreground">{topic.problems} problems</p>
-            </CardContent>
-          </Card>
+          <Link
+            key={topic.name}
+            to={`/topics/${encodeURIComponent(topic.name)}`}
+            className="block"
+          >
+            <Card className="hover:border-accent transition-colors cursor-pointer">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="text-lg font-bold text-foreground">{topic.name}</h3>
+                  <Badge variant="outline" className={difficultyColor[topic.difficulty]}>
+                    {topic.difficulty}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">{topic.description}</p>
+                <p className="text-xs text-muted-foreground">{topic.problems} problems</p>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>

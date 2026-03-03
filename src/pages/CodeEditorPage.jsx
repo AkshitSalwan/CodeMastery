@@ -25,6 +25,11 @@ export function CodeEditorPage() {
   };
 
   const handleRun = async () => {
+    if (!code.trim()) {
+      setOutput('Error: No code to run. Please write something in the editor.');
+      return;
+    }
+
     setIsRunning(true);
     // Simulate code execution
     setTimeout(() => {

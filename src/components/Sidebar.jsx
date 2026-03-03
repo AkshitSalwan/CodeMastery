@@ -38,7 +38,11 @@ const interviewerNavItems = [
 
 const adminItems = [
   { label: 'Admin Panel', href: '/admin', icon: BarChart3 },
+];
+
+const interviewerAdminItems = [
   { label: 'Add Question', href: '/questions/add', icon: Plus },
+  { label: 'Admin Panel', href: '/admin', icon: BarChart3 },
 ];
 
 export function Sidebar() {
@@ -55,7 +59,10 @@ export function Sidebar() {
         <p className="text-xs font-semibold text-muted-foreground uppercase px-2 mb-4">Navigation</p>
         {mainNavItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.href;
+          // keep the "Topics" link active when viewing a specific topic
+          const isActive =
+            location.pathname === item.href ||
+            (item.href === '/topics' && location.pathname.startsWith('/topics'));
           return (
             <Link
               key={item.href}
@@ -119,7 +126,7 @@ export function Sidebar() {
       <div className="p-4 border-t border-border space-y-4">
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase px-2">Admin</p>
-          {adminItems.map((item) => {
+          {(isInterviewer ? interviewerAdminItems : adminItems).map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.href;
             return (

@@ -1,25 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/Card';
 import { Badge } from '../components/Badge';
-import { ArrowRight } from 'lucide-react';
-import { BookmarkButton } from "../components/BookmarkButton";
 import { problems as defaultProblems } from '../data/problems';
 
-export function ProblemsPage() {
+export function TopicDetailPage() {
+  const { topic } = useParams();
+  const decodedTopic = decodeURIComponent(topic);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('All');
-  const [filterCategory, setFilterCategory] = useState('All');
-  const [customQuestions, setCustomQuestions] = useState([]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('customQuestions');
-    if (stored) {
-      setCustomQuestions(JSON.parse(stored));
-    }
-  }, []);
-
-  const allProblems = [...defaultProblems, ...customQuestions];
 
   const difficultyColor = {
     Easy: 'bg-green-500/20 text-green-700 dark:text-green-400',
@@ -27,19 +16,32 @@ export function ProblemsPage() {
     Hard: 'bg-red-500/20 text-red-700 dark:text-red-400',
   };
 
-  const filtered = allProblems.filter(
+  // filter problems by category matching the topic name
+  const topicProblems = defaultProblems.filter(p =>
+    p.category.some(c => c.toLowerCase() === decodedTopic.toLowerCase())
+  );
+
+  const filtered = topicProblems.filter(
     (problem) =>
       (problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         problem.description.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (filterDifficulty === 'All' || problem.difficulty === filterDifficulty) &&
-      (filterCategory === 'All' || problem.category.includes(filterCategory))
+      (filterDifficulty === 'All' || problem.difficulty === filterDifficulty)
   );
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Problems</h1>
-        <p className="text-muted-foreground">Solve {allProblems.length} amazing DSA problems</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-foreground mb-2">
+            {decodedTopic}
+          </h1>
+          <p className="text-muted-foreground">
+            {topicProblems.length} problems in this topic
+          </p>
+        </div>
+        <Link to="/topics" className="text-sm text-accent hover:underline">
+          &larr; Back to topics
+        </Link>
       </div>
 
       {/* Filters */}
@@ -65,25 +67,10 @@ export function ProblemsPage() {
               <option>Hard</option>
             </select>
           </div>
-          <div>
-            <label className="text-sm text-muted-foreground">Category</label>
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
-            >
-              <option>All</option>
-              <option>Array</option>
-              <option>String</option>
-              <option>Linked List</option>
-              <option>Hash Table</option>
-              <option>Math</option>
-            </select>
-          </div>
         </div>
       </div>
 
-      {/* Problems Grid */}
+      {/* Problem list */}
       <div className="grid gap-4">
         {filtered.map((problem) => (
           <Card key={problem.id} className="hover:border-accent transition-colors">
@@ -97,36 +84,21 @@ export function ProblemsPage() {
                     {problem.description.substring(0, 100)}...
                   </p>
                 </Link>
-                <BookmarkButton problemId={problem.id} />
-              </div>
-
-              <div className="flex flex-wrap gap-2">
                 <Badge variant="outline" className={difficultyColor[problem.difficulty]}>
                   {problem.difficulty}
                 </Badge>
-                {problem.companies.slice(0, 2).map((company) => (
-                  <Badge key={company} variant="secondary" className="text-xs">
-                    {company}
-                  </Badge>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
-                <span>{problem.acceptanceRate.toFixed(1)}% acceptance</span>
-                <ArrowRight className="h-4 w-4" />
               </div>
             </CardContent>
           </Card>
         ))}
+        {filtered.length === 0 && (
+          <Card>
+            <CardContent className="pt-6 text-center py-12">
+              <p className="text-muted-foreground">No problems found in this topic</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
-
-      {filtered.length === 0 && (
-        <Card>
-          <CardContent className="pt-6 text-center py-12">
-            <p className="text-muted-foreground">No problems found matching your criteria</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

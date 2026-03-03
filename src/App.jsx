@@ -26,6 +26,7 @@ import { CodeEditorPage } from "./pages/CodeEditorPage";
 import { AdminPage } from "./pages/AdminPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { TopicsPage } from "./pages/TopicsPage";
+import { TopicDetailPage } from "./pages/TopicDetailPage";
 import { FeedbackPage } from "./pages/FeedbackPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -141,6 +142,7 @@ function AppContent() {
                       <Route path="/problems/:id/editor" element={<CodeEditorPage />} />
                       <Route path="/admin" element={<AdminPage />} />
                       <Route path="/bookmarks" element={<BookmarksPage />} />
+                      <Route path="/topics/:topic" element={<TopicDetailPage />} />
                       <Route path="/topics" element={<TopicsPage />} />
                       <Route path="/feedback" element={<FeedbackPage />} />
                       <Route path="/profile" element={<UserProfilePage />} />

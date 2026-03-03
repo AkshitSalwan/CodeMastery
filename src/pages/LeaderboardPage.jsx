@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { LEADERBOARD_DATA } from '../data/leaderboard';
 
 export function LeaderboardPage() {
   const [sortBy, setSortBy] = useState('points'); // points, solved, streak
+  const { user } = useAuth();
   const [timeframe, setTimeframe] = useState('all'); // all, week, month
 
   const sortedLeaderboard = [...LEADERBOARD_DATA].sort((a, b) => {
@@ -38,8 +40,8 @@ export function LeaderboardPage() {
         </p>
       </div>
 
-      {/* User's Current Rank */}
-      {currentUserRank && (
+      {/* User's Current Rank - hide for interviewers */}
+      {currentUserRank && user?.role !== 'interviewer' && (
         <Card className="border-accent/50 bg-accent/5">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
