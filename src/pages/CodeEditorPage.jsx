@@ -33,17 +33,66 @@ export function CodeEditorPage() {
   };
 
   const handleRun = async () => {
-    if (!code.trim()) {
+    const trimmedCode = code.trim();
+
+    // No code written
+    if (!trimmedCode) {
       setOutput('Error: No code to run. Please write something in the editor.');
       return;
     }
 
     setIsRunning(true);
-    // Simulate code execution
-    setTimeout(() => {
-      setOutput(`✓ Compiled Successfully\n\nTest Results:\nPassed: 3/3\nRuntime: 45ms\nMemory: 24.5MB\n\nOutput:\n42`);
+    setOutput('Running code on Judge0...');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+
+      const response = await fetch(`${API_BASE}/api/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language,
+          code: trimmedCode,
+          stdin: '',
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        setOutput(`Error from backend (${response.status}):\n${errText}`);
+        setIsRunning(false);
+        return;
+      }
+
+      const result = await response.json();
+
+      const status = result.status?.description || 'Unknown';
+      const time = result.time != null ? `${result.time}s` : 'N/A';
+      const memory = result.memory != null ? `${result.memory} KB` : 'N/A';
+
+      // Compilation error
+      if (result.compile_output) {
+        setOutput(
+          `Compilation Error (${status})\n\n${result.compile_output}`
+        );
+      } else if (result.stderr) {
+        // Runtime error
+        setOutput(
+          `Runtime Error (${status})\n\n${result.stderr}`
+        );
+      } else {
+        // Successful run (or other statuses with stdout)
+        const header = status === 'Accepted' ? '✓ Accepted' : `Status: ${status}`;
+        setOutput(
+          `${header}\n\nTime: ${time}\nMemory: ${memory}\n\nOutput:\n${result.stdout || ''}`
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      setOutput('Unexpected error while talking to Judge0.');
+    } finally {
       setIsRunning(false);
-    }, 1500);
+    }
   };
 
   const handleReset = () => {

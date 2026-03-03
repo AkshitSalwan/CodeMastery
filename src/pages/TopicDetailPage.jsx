@@ -16,9 +16,29 @@ export function TopicDetailPage() {
     Hard: 'bg-red-500/20 text-red-700 dark:text-red-400',
   };
 
-  // filter problems by category matching the topic name
+  // Map UI topic names to underlying problem categories (handles plural vs singular)
+  const topicCategoryMap = {
+    'Arrays': ['Array'],
+    'Strings': ['String'],
+    'Trees': ['Tree'],
+    'Graphs': ['Graph'],
+    'Dynamic Programming': ['Dynamic Programming'],
+    'Sorting': ['Sorting'],
+    'Linked Lists': ['Linked List'],
+    'Hash Tables': ['Hash Table'],
+    'Stacks & Queues': ['Stack', 'Queue'],
+    'Greedy': ['Greedy'],
+    'Math': ['Math'],
+    'Bit Manipulation': ['Bit Manipulation'],
+  };
+
+  const targetCategories = topicCategoryMap[decodedTopic] || [decodedTopic];
+
+  // filter problems by category matching the mapped topic categories
   const topicProblems = defaultProblems.filter(p =>
-    p.category.some(c => c.toLowerCase() === decodedTopic.toLowerCase())
+    p.category.some(c =>
+      targetCategories.some(t => c.toLowerCase() === t.toLowerCase())
+    )
   );
 
   const filtered = topicProblems.filter(
