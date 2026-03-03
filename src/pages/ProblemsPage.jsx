@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/Card';
+import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { ArrowRight } from 'lucide-react';
 import { BookmarkButton } from "../components/BookmarkButton";
@@ -113,7 +114,14 @@ export function ProblemsPage() {
 
               <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
                 <span>{problem.acceptanceRate.toFixed(1)}% acceptance</span>
-                <ArrowRight className="h-4 w-4" />
+                <div className="flex items-center gap-2">
+                  <Link to={`/problems/${problem.id}/editor`}>
+                    <Button size="sm" variant="outline">
+                      Solve
+                    </Button>
+                  </Link>
+                  <ArrowRight className="h-4 w-4" />
+                </div>
               </div>
             </CardContent>
           </Card>
