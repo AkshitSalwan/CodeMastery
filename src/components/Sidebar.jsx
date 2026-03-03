@@ -14,6 +14,7 @@ import {
   Layers,
   Zap,
   Target,
+  ClipboardList,
 } from 'lucide-react';
 
 const userNavItems = [
@@ -32,6 +33,7 @@ const userChallengeItems = [
 
 const interviewerNavItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Make a Test', href: '/make-test', icon: ClipboardList },
   { label: 'Contests', href: '/contests', icon: Target },
   { label: 'Leaderboard', href: '/leaderboard', icon: BarChart3 },
 ];
