@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import Editor from '@monaco-editor/react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
@@ -13,6 +14,13 @@ export function CodeEditorPage() {
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const editorRef = useRef(null);
+
+  const monacoLanguageMap = {
+    javascript: 'javascript',
+    python: 'python',
+    java: 'java',
+    cpp: 'cpp',
+  };
 
   if (!problem) {
     return <div className="text-center py-12">Problem not found</div>;
@@ -137,12 +145,20 @@ export function CodeEditorPage() {
 
         {/* Code Editor */}
         <Card className="flex-1 flex flex-col overflow-hidden">
-          <textarea
-            ref={editorRef}
+          <Editor
+            height="100%"
+            language={monacoLanguageMap[language]}
             value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="flex-1 p-4 bg-background text-foreground font-mono text-sm border-0 outline-none resize-none"
-            spellCheck="false"
+            onChange={(value) => setCode(value || '')}
+            theme="vs-dark"
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              fontFamily: 'Fira Code, monospace',
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              wordWrap: 'on',
+            }}
           />
         </Card>
 
@@ -153,7 +169,7 @@ export function CodeEditorPage() {
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto py-3">
             {output ? (
-              <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap break-words">
+              <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap wrap-break-word">
                 {output}
               </pre>
             ) : (
