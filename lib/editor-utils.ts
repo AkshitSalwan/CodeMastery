@@ -24,5 +24,14 @@ export function validateSyntax(code: string, language: Language): string | null 
   if (code.trim().length === 0) {
     return 'Code cannot be empty';
   }
+
+  // Very lightweight language-specific checks to catch obvious mistakes
+  if (language === 'java') {
+    // Common HashMap typo in Java solutions
+    if (code.includes('HashMap') && code.includes('map.ut(')) {
+      return 'Cannot resolve method ut on HashMap (did you mean put?)';
+    }
+  }
+
   return null;
 }
