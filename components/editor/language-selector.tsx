@@ -1,14 +1,14 @@
 'use client';
 
-import type { Language } from '@/lib/types/problem';
-import { languageInfo } from '@/lib/editor-utils';
+import type { Language } from '../../lib/types/problem';
+import { languageInfo } from '../../lib/editor-utils';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '../../components/ui/select';
 
 type LanguageSelectorProps = {
   value: Language;

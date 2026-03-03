@@ -1,7 +1,7 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { UserStats } from '@/lib/types/user';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import type { UserStats } from '../../lib/types/user';
 
 type ProgressChartProps = {
   stats: UserStats;

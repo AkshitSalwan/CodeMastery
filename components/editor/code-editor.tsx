@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTheme } from 'next-themes';
-import type { Language } from '@/lib/types/problem';
-import { monacoLanguages } from '@/lib/editor-utils';
+import type { Language } from '../../lib/types/problem';
+import { monacoLanguages } from '../../lib/editor-utils';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
