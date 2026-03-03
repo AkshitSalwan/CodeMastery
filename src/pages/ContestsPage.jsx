@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
@@ -7,12 +7,29 @@ import { CONTESTS } from '../data/contests';
 
 export function ContestsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedContest, setSelectedContest] = useState(null);
   const [filter, setFilter] = useState('active'); // all, active, upcoming, completed
+  const [customContests, setCustomContests] = useState([]);
 
   const isInterviewer = user?.role === 'interviewer';
 
-  const filteredContests = CONTESTS.filter(contest => {
+  // Load interviewer-created custom contests from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('customContests');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setCustomContests(parsed);
+      } catch {
+        setCustomContests([]);
+      }
+    }
+  }, []);
+
+  const allContests = [...CONTESTS, ...customContests];
+
+  const filteredContests = allContests.filter(contest => {
     if (filter === 'all') return true;
     return contest.status === filter;
   });
@@ -69,7 +86,10 @@ export function ContestsPage() {
 
       {/* Create Contest Button (Interviewer Only) */}
       {isInterviewer && (
-        <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
+        <Button
+          className="bg-accent text-accent-foreground hover:bg-accent/90"
+          onClick={() => navigate('/contests/new')}
+        >
           + Create New Contest
         </Button>
       )}
