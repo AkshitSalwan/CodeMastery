@@ -315,6 +315,24 @@ Click on your avatar/name in the **top-right corner** to see:
 ✅ Protected routes  
 ✅ User sidebar navigation  
 ✅ Interviewer sidebar navigation  
+
+### Settings Page  
+1. Click on **Settings** in navbar or sidebar.  
+2. Verify profile information loads (name, email).  
+3. For interviewer role, additional fields "Organization" and "Default Availability" should appear.  
+4. Update any field and save; confirm success message.  
+5. Change password using the form; mock update should show confirmation.  
+6. Ensure page is protected when not authenticated (redirects to login).  
+7. Under **Preferences** card:
+   - Toggle **Email notifications** and save, then reload to ensure it's persisted.
+   - Switch theme between Light/Dark/System and verify the app theme changes immediately and persists.
+   - Preferences should be retained across page refreshes and after logout/login.
+8. Visit your profile and:
+   - Verify unlocked achievement badges appear under your avatar.
+   - Click **Edit** on the profile card; name and bio should become editable inline.
+   - Change a value and save; refresh to confirm the change persisted.
+   - Cancel editing to ensure form resets.
+
 ✅ Achievements display and filtering  
 ✅ Daily challenges listing  
 ✅ Leaderboard with sorting  

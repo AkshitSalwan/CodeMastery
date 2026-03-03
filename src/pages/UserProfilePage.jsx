@@ -1,7 +1,8 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ProgressChart } from '../../components/dashboard/progress-chart';
 import { useAuth } from '../context/AuthContext';
+import { ACHIEVEMENTS } from '../data/achievements';
 
 // Dummy stats data for demonstration
 const userStats = {
@@ -18,13 +19,34 @@ const userStats = {
 };
 
 export default function UserProfilePage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) {
     return <div className="p-8 text-center">Loading profile...</div>;
   }
 
   const skills = ['JavaScript', 'React', 'Algorithms', 'Data Structures'];
+  const badges = ACHIEVEMENTS.filter(a => a.unlocked);
+
+  const [editing, setEditing] = React.useState(false);
+  const [profileForm, setProfileForm] = React.useState({
+    name: user.name || '',
+    bio: user.bio || '',
+    organization: user.organization || '',
+    availability: user.availability || '',
+  });
+
+  const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+    setProfileForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const saveProfileInline = (e) => {
+    e.preventDefault();
+    updateUser(profileForm);
+    setEditing(false);
+  };
 
   // tab state for interviewer profile
   const [activeTab, setActiveTab] = React.useState('overview');
@@ -65,8 +87,54 @@ export default function UserProfilePage() {
             alt="User Avatar"
             className="w-32 h-32 rounded-full border-4 border-primary shadow-lg mb-4 object-cover ring-2 ring-primary/20 dark:ring-primary/10 transition-all duration-300 hover:scale-105"
           />
-          <h2 className="text-2xl font-bold text-foreground mb-1 tracking-tight">{user.name}</h2>
-          <p className="text-sm text-muted-foreground mb-4 text-center">{user.bio || 'Developer'}</p>
+          {badges.length > 0 && (
+            <div className="flex gap-1 mb-2">
+              {badges.map(b => (
+                <span key={b.id} title={b.name} className="text-xl">
+                  {b.icon}
+                </span>
+              ))}
+            </div>
+          )}
+          {editing ? (
+            <form onSubmit={saveProfileInline} className="w-full space-y-3">
+              <div>
+                <input
+                  name="name"
+                  value={profileForm.name}
+                  onChange={handleProfileChange}
+                  className="w-full rounded-md border border-border px-2 py-1"
+                />
+              </div>
+              <div>
+                <textarea
+                  name="bio"
+                  value={profileForm.bio}
+                  onChange={handleProfileChange}
+                  rows={2}
+                  className="w-full rounded-md border border-border px-2 py-1"
+                />
+              </div>
+              <div className="flex gap-2 justify-center">
+                <button type="submit" className="text-sm text-primary">Save</button>
+                <button onClick={() => setEditing(false)} className="text-sm text-muted-foreground">Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-foreground mb-1 tracking-tight">{user.name}</h2>
+              <p className="text-xs text-muted-foreground mb-1">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''}</p>
+              <p className="text-sm text-muted-foreground mb-4 text-center">{user.bio || 'Developer'}</p>
+            </>
+          )}
+          {!editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs text-primary hover:underline mb-2"
+            >
+              Edit
+            </button>
+          )}
           <div className="flex flex-col gap-3 mt-4 w-full">
             {user.role !== 'interviewer' ? (
               <>
@@ -105,7 +173,15 @@ export default function UserProfilePage() {
             )}
           </div>
           <div className="mt-6 w-full">
-            <h3 className="text-lg font-semibold text-foreground mb-3">Skills</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground mb-3">Skills</h3>
+              <button
+                onClick={() => navigate('/settings')}
+                className="text-sm text-primary hover:underline"
+              >
+                Edit profile
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {skills.map(skill => (
                 <span key={skill} className="bg-primary/15 dark:bg-primary/20 text-primary dark:text-primary px-3 py-1.5 rounded-full text-sm font-medium shadow-sm border border-primary/20 dark:border-primary/30 hover:bg-primary/25 dark:hover:bg-primary/30 transition-all duration-200 cursor-default">
@@ -114,6 +190,16 @@ export default function UserProfilePage() {
               ))}
             </div>
           </div>
+          {/* Preferences preview */}
+          {user.preferences && (
+            <div className="mt-4 w-full">
+              <h3 className="text-lg font-semibold text-foreground mb-2">Preferences</h3>
+              <div className="text-sm text-muted-foreground">
+                Email notifications: {user.preferences.emailNotifications ? 'On' : 'Off'}<br />
+                Theme: {user.preferences.theme === 'system' ? 'System' : user.preferences.theme.charAt(0).toUpperCase() + user.preferences.theme.slice(1)}
+              </div>
+            </div>
+          )}
         </div>
         {/* right column content */}
         {user.role === 'interviewer' ? (
