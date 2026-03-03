@@ -11,7 +11,7 @@ export function BookmarkButton({ problemId, size = 'sm' }) {
       variant={bookmarked ? 'default' : 'ghost'}
       size={size}
       onClick={() => toggleBookmark(problemId)}
-      className="flex-shrink-0"
+      className="shrink-0"
       aria-label="Toggle bookmark"
     >
       <Bookmark className={`h-4 w-4 ${bookmarked ? 'fill-current' : ''}`} />

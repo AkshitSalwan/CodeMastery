@@ -1,8 +1,8 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import type { TestResult } from '@/lib/types/problem';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
+import type { TestResult } from '../../lib/types/problem';
 import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 type ExecutionOutputProps = {

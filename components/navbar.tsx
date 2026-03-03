@@ -1,38 +1,54 @@
-'use client';
-
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/lib/contexts/auth-context';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
+import { useAuth } from '../lib/contexts/auth-context';
 import { Moon, Sun, LogOut, User } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function Navbar() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { theme, setTheme } = useTheme();
   const [showMenu, setShowMenu] = useState(false);
+  const [dark, setDark] = useState(false);
+
+  // Initialize theme
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    const isDark = storedTheme === 'dark' || (!storedTheme && prefersDark);
+
+    setDark(isDark);
+    document.documentElement.classList.toggle('dark', isDark);
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = !dark;
+    setDark(newTheme);
+    document.documentElement.classList.toggle('dark', newTheme);
+    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+  };
 
   const handleLogout = () => {
     logout();
-    router.push('/');
+    navigate('/');
   };
 
   return (
-    <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
+    <nav className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/dashboard" className="text-xl font-bold text-accent">
+        
+        <Link to="/dashboard" className="text-xl font-bold text-accent">
           CodeMastery
         </Link>
 
         <div className="flex items-center gap-4">
+          
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={toggleTheme}
           >
-            {theme === 'dark' ? (
+            {dark ? (
               <Sun className="h-4 w-4" />
             ) : (
               <Moon className="h-4 w-4" />
@@ -47,18 +63,21 @@ export function Navbar() {
               className="gap-2"
             >
               <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-medium">
-                {user?.name.charAt(0).toUpperCase()}
+                {user?.name?.charAt(0).toUpperCase()}
               </div>
             </Button>
 
             {showMenu && (
               <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-card border border-border z-50">
+                
                 <div className="p-4 border-b border-border">
                   <p className="font-medium text-foreground">{user?.name}</p>
                   <p className="text-sm text-muted-foreground">{user?.email}</p>
                 </div>
+
                 <div className="p-2">
-                  <Link href="/profile" onClick={() => setShowMenu(false)}>
+                  
+                  <Link to="/profile" onClick={() => setShowMenu(false)}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -68,6 +87,7 @@ export function Navbar() {
                       Profile
                     </Button>
                   </Link>
+
                   <Button
                     variant="ghost"
                     size="sm"
@@ -77,6 +97,7 @@ export function Navbar() {
                     <LogOut className="h-4 w-4" />
                     Logout
                   </Button>
+
                 </div>
               </div>
             )}

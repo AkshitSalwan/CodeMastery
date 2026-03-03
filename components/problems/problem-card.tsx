@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { BookmarkButton } from '@/components/bookmark-button';
-import type { Problem } from '@/lib/types/problem';
+import { Card, CardContent } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
+import { BookmarkButton } from '../../components/bookmark-button';
+import type { Problem } from '../../lib/types/problem';
 import { ArrowRight } from 'lucide-react';
 
 type ProblemCardProps = {
@@ -31,7 +31,7 @@ export function ProblemCard({ problem, solved }: ProblemCardProps) {
               {problem.description.substring(0, 100)}...
             </p>
           </Link>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {solved && <div className="text-xl">✓</div>}
             <BookmarkButton problemId={problem.id} size="sm" />
           </div>
