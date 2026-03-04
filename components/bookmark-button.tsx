@@ -1,9 +1,7 @@
-'use client';
-
 import { useAuth } from '../lib/contexts/auth-context';
-import { Button } from '../components/ui/button';
+import { Button } from './ui/button';
 import { Bookmark } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 
 interface BookmarkButtonProps {
   problemId: string;
@@ -18,12 +16,12 @@ export function BookmarkButton({
   size = 'default',
   showLabel = false,
 }: BookmarkButtonProps) {
-  const { user, isAuthenticated, toggleBookmark, isBookmarked } = useAuth();
-  const router = useRouter();
+  const { isAuthenticated, toggleBookmark, isBookmarked } = useAuth();
+  const navigate = useNavigate();
 
   const handleClick = () => {
     if (!isAuthenticated) {
-      router.push('/auth/login');
+      navigate('/login');
       return;
     }
     toggleBookmark(problemId);

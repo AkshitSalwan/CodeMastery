@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { problems as defaultProblems } from '../data/problems';
 
 const topics = [
   'Arrays',
@@ -46,8 +47,37 @@ export function TestBuilderPage() {
   // Questions State
   const [questions, setQuestions] = useState([]);
   const [expandedQuestion, setExpandedQuestion] = useState(null);
+  const [candidateProblems, setCandidateProblems] = useState([]);
 
   // ==================== Step 1: Test Setup ====================
+
+  // Load custom questions and compute candidate problems when moving to questions step
+  useEffect(() => {
+    if (currentStep !== 'questions') return;
+
+    const stored = localStorage.getItem('customQuestions');
+    let custom = [];
+    if (stored) {
+      try {
+        custom = JSON.parse(stored);
+      } catch (err) {
+        console.warn('Failed to parse customQuestions', err);
+        custom = [];
+      }
+    }
+
+    const all = [...defaultProblems, ...custom];
+
+    // Filter by selected topics (match any category case-insensitively)
+    const filtered = all.filter(p => {
+      const categories = Array.isArray(p.category) ? p.category : (p.category ? [p.category] : []);
+      return testSetup.selectedTopics.some(sel =>
+        categories.some(c => c.toLowerCase() === sel.toLowerCase() || c.toLowerCase() === sel.replace(/s$/i, '').toLowerCase())
+      );
+    });
+
+    setCandidateProblems(filtered);
+  }, [currentStep, testSetup.selectedTopics]);
   const handleSetupChange = (field, value) => {
     setTestSetup(prev => ({
       ...prev,
@@ -349,6 +379,69 @@ export function TestBuilderPage() {
               You'll be redirected to the question creation page where you can add comprehensive questions.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Candidate Problems List (LeetCode style) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Available Questions (by selected topics)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {candidateProblems.length === 0 ? (
+            <p className="text-muted-foreground">No available problems for the selected topics. You can create new questions or adjust selected topics.</p>
+          ) : (
+            <div className="space-y-3">
+              {candidateProblems.map((p) => (
+                <div key={p.id} className="border border-border rounded-lg p-4 flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground">{p.title}</h3>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${p.difficulty === 'Easy' ? 'bg-green-500/20 text-green-700' : p.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-700' : 'bg-red-500/20 text-red-700'}`}>
+                        {p.difficulty}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">{(p.description || '').substring(0, 150)}...</p>
+                    <div className="flex gap-2 mt-3 flex-wrap">
+                      {(p.companies || []).slice(0, 2).map(c => (
+                        <span key={c} className="text-xs px-2 py-1 rounded-full bg-secondary text-secondary-foreground">{c}</span>
+                      ))}
+                      <span className="text-xs text-muted-foreground">{p.acceptanceRate ? `${p.acceptanceRate.toFixed(1)}% acceptance` : 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 ml-4 flex flex-col gap-2 items-end">
+                    <button
+                      onClick={() => {
+                        // prevent duplicate adds
+                        if (questions.some(q => q.id === p.id)) return alert('Question already added to the test');
+                        const topicForQuestion = (Array.isArray(p.category) ? p.category[0] : p.category) || testSetup.selectedTopics[0];
+                        const newQ = {
+                          id: p.id,
+                          title: p.title,
+                          description: p.description || '',
+                          topic: topicForQuestion,
+                          difficulty: p.difficulty || 'Medium',
+                          score: 10,
+                        };
+                        setQuestions(prev => [...prev, newQ]);
+                      }}
+                      className="px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        alert(p.title + '\n\n' + (p.description || 'No description'));
+                      }}
+                      className="px-3 py-2 rounded-lg border border-border bg-background text-foreground hover:bg-secondary/50 transition"
+                    >
+                      Preview
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -1,6 +1,16 @@
 require('dotenv').config();
 const express = require('express');
-const fetch = require('node-fetch'); // if using Node < 18, ensure this is installed
+
+// Use global fetch when available (Node 18+). Otherwise fall back to node-fetch if installed.
+let fetch = globalThis.fetch;
+if (!fetch) {
+  try {
+    // eslint-disable-next-line global-require
+    fetch = require('node-fetch'); // optional dependency for older Node versions
+  } catch (err) {
+    console.warn('`fetch` is not available globally and `node-fetch` is not installed. API routes that call external services will fail.');
+  }
+}
 
 // initialize express
 const app = express();
