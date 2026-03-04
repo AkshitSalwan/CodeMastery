@@ -109,6 +109,23 @@ function AppContent() {
             </div>
           }
         />
+        {/* Public Problems page (accessible without login) */}
+        <Route
+          path="/problems"
+          element={
+            <div className="flex min-h-screen bg-background">
+              <Sidebar />
+              <div className="flex-1 flex flex-col">
+                <Navbar />
+                <main className="flex-1 pt-16 pl-64 overflow-auto">
+                  <div className="p-4 sm:p-6 lg:p-8">
+                    <ProblemsPage />
+                  </div>
+                </main>
+              </div>
+            </div>
+          }
+        />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/home" element={<HomePage />} />

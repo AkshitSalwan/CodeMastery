@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent } from '../components/Card';
-import { Button } from '../components/Button';
-import { Badge } from '../components/Badge';
+import { Card, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
 import { ArrowRight } from 'lucide-react';
-import { BookmarkButton } from "../components/BookmarkButton";
+import { BookmarkButton } from "../../components/bookmark-button";
 import { problems as defaultProblems } from '../data/problems';
 
 export function ProblemsPage() {
@@ -29,11 +29,15 @@ export function ProblemsPage() {
   };
 
   const filtered = allProblems.filter(
-    (problem) =>
-      (problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        problem.description.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (filterDifficulty === 'All' || problem.difficulty === filterDifficulty) &&
-      (filterCategory === 'All' || problem.category.includes(filterCategory))
+    (problem) => {
+      const categories = Array.isArray(problem.category) ? problem.category : (problem.category ? [problem.category] : []);
+      return (
+        ((problem.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+          (problem.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())) &&
+        (filterDifficulty === 'All' || problem.difficulty === filterDifficulty) &&
+        (filterCategory === 'All' || categories.includes(filterCategory))
+      );
+    }
   );
 
   return (
@@ -92,10 +96,10 @@ export function ProblemsPage() {
               <div className="flex items-start justify-between gap-2">
                 <Link to={`/problems/${problem.id}`} className="flex-1">
                   <h3 className="font-semibold text-foreground hover:text-accent transition-colors">
-                    {problem.title}
+                    {problem.title || 'Untitled'}
                   </h3>
                   <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                    {problem.description.substring(0, 100)}...
+                    {((problem.description || '').substring(0, 100)) || '—'}...
                   </p>
                 </Link>
                 <BookmarkButton problemId={problem.id} />
@@ -105,7 +109,7 @@ export function ProblemsPage() {
                 <Badge variant="outline" className={difficultyColor[problem.difficulty]}>
                   {problem.difficulty}
                 </Badge>
-                {problem.companies.slice(0, 2).map((company) => (
+                {(problem.companies || []).slice(0, 2).map((company) => (
                   <Badge key={company} variant="secondary" className="text-xs">
                     {company}
                   </Badge>
@@ -113,7 +117,7 @@ export function ProblemsPage() {
               </div>
 
               <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
-                <span>{problem.acceptanceRate.toFixed(1)}% acceptance</span>
+                <span>{problem.acceptanceRate ? `${problem.acceptanceRate.toFixed(1)}%` : '—'} acceptance</span>
                 <div className="flex items-center gap-2">
                   <Link to={`/problems/${problem.id}/editor`}>
                     <Button size="sm" variant="outline">
