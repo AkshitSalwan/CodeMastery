@@ -1,11 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Link } from 'react-router-dom';
-import { Flame, Trophy, Zap, Code2, Briefcase, FileText, Calendar, Users } from 'lucide-react';
+import { Flame, Trophy, Zap, Code2, Briefcase, FileText, Calendar, Users, Clock, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useState, useEffect } from 'react';
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const [recentActivities, setRecentActivities] = useState([]);
+
+  useEffect(() => {
+    const activities = JSON.parse(localStorage.getItem('recentActivities') || '[]');
+    setRecentActivities(activities.slice(0, 5));
+  }, []);
 
   const userStats = [
     { label: 'Problems Solved', value: '24', icon: Code2, color: 'text-blue-500' },
@@ -26,8 +33,14 @@ export function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Welcome Back!</h1>
-        <p className="text-muted-foreground">Continue your learning journey with DSA</p>
+        <h1 className="text-4xl font-bold text-foreground mb-2">
+          {user?.role === 'interviewer' ? 'Welcome Back, Interviewer!' : 'Welcome Back!'}
+        </h1>
+        <p className="text-muted-foreground">
+          {user?.role === 'interviewer' 
+            ? 'Manage interviews and track candidate performance' 
+            : 'Continue your learning journey with DSA'}
+        </p>
       </div>
 
       {/* Stats Grid */}
@@ -90,15 +103,95 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Problems */}
+      {/* Recent Activity */}
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">Recent Activity</h2>
+        <h2 className="text-2xl font-bold text-foreground">
+          {user?.role === 'interviewer' ? 'Recent Tests & Candidates' : 'Recent Activity'}
+        </h2>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-muted-foreground text-center py-8">No recent activity. Start solving problems!</p>
+            {user?.role === 'interviewer' && recentActivities.length > 0 ? (
+              <div className="space-y-4">
+                {recentActivities.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-4 pb-4 border-b border-border last:pb-0 last:border-b-0">
+                    <div className="mt-1 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      {activity.type === 'test_created' ? (
+                        <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      ) : (
+                        <Clock className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground truncate">{activity.title}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{activity.description}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {new Date(activity.timestamp).toLocaleDateString()} at {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">
+                {user?.role === 'interviewer' 
+                  ? 'No recent activity. Create a test to get started!' 
+                  : 'No recent activity. Start solving problems!'}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Additional Interviewer Resources */}
+      {user?.role === 'interviewer' && (
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-foreground">Interviewer Resources</h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-green-500" />
+                  Create Test
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">Build custom coding tests for candidates</p>
+                <Link to="/make-test">
+                  <Button size="sm" variant="outline" className="w-full">Get Started</Button>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="h-5 w-5 text-purple-500" />
+                  Manage Candidates
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">Review and track candidate submissions</p>
+                <Link to="/contests">
+                  <Button size="sm" variant="outline" className="w-full">View All</Button>
+                </Link>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-orange-500" />
+                  Leaderboard
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">Monitor interview performance metrics</p>
+                <Link to="/leaderboard">
+                  <Button size="sm" variant="outline" className="w-full">View Metrics</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

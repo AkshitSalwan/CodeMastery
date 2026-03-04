@@ -117,6 +117,21 @@ export function MakeTestPage() {
     existingTests.push(newTest);
     localStorage.setItem('createdTests', JSON.stringify(existingTests));
 
+    // Save to recent activities
+    const activities = JSON.parse(localStorage.getItem('recentActivities') || '[]');
+    activities.unshift({
+      id: Date.now().toString(),
+      type: 'test_created',
+      title: `Created test "${formData.testName}"`,
+      description: `${formData.numQuestions} questions • ${formData.difficulty} • ${formData.topics.join(', ')}`,
+      timestamp: new Date().toISOString(),
+      testId: newTest.id,
+      testName: formData.testName,
+    });
+    // Keep only last 20 activities
+    if (activities.length > 20) activities.pop();
+    localStorage.setItem('recentActivities', JSON.stringify(activities));
+
     setIsSubmitting(false);
     
     // Show confirmation and redirect

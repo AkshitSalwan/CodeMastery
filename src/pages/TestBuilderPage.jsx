@@ -145,6 +145,21 @@ export function TestBuilderPage() {
     existingTests.push(testData);
     localStorage.setItem('testBuilderTests', JSON.stringify(existingTests));
 
+    // Save to recent activities
+    const activities = JSON.parse(localStorage.getItem('recentActivities') || '[]');
+    activities.unshift({
+      id: Date.now().toString(),
+      type: 'test_created',
+      title: `Created test "${testSetup.testName}"`,
+      description: `${questions.length} questions • ${testSetup.difficulty} • ${testSetup.selectedTopics.join(', ')}`,
+      timestamp: new Date().toISOString(),
+      testId: testData.id,
+      testName: testSetup.testName,
+    });
+    // Keep only last 20 activities
+    if (activities.length > 20) activities.pop();
+    localStorage.setItem('recentActivities', JSON.stringify(activities));
+
     alert(`Test "${testSetup.testName}" created successfully with ${questions.length} questions!`);
     navigate('/contests');
   };
