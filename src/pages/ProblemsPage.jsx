@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
+import { Card, CardContent } from '../components/Card';
+import { Button } from '../components/Button';
+import { Badge } from '../components/Badge';
 import { ArrowRight } from 'lucide-react';
-import { BookmarkButton } from "../../components/bookmark-button";
+import { BookmarkButton } from "../components/BookmarkButton";
 import { problems as defaultProblems } from '../data/problems';
 
 export function ProblemsPage() {
