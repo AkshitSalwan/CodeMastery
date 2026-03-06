@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { TrendingUp, Users, Code2, MessageSquare, FileText, Target, Calendar, Briefcase } from 'lucide-react';
+import { TrendingUp, Users, Code2, MessageSquare, FileText, Target, Calendar, Briefcase, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 export function AdminPage() {
   const { user } = useAuth();
@@ -61,12 +62,24 @@ export function AdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">
-          {isInterviewer ? 'Interviewer Dashboard' : 'Admin Dashboard'}
-        </h1>
-        <p className="text-muted-foreground">
-          {isInterviewer ? 'Manage contests and problems' : 'Platform analytics and insights'}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2">
+              {isInterviewer ? 'Interviewer Dashboard' : 'Admin Dashboard'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isInterviewer ? 'Manage contests and problems' : 'Platform analytics and insights'}
+            </p>
+          </div>
+          {isInterviewer && (
+            <Link to="/add-question">
+              <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                <Plus className="h-4 w-4" />
+                New Problem
+              </button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}

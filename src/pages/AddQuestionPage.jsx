@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 
@@ -19,12 +19,38 @@ export default function AddQuestionPage({ onAddQuestion }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [difficulty, setDifficulty] = useState('Medium');
-  const [category, setCategory] = useState('');
+  // default to first category so the submit button isn't stuck disabled
+  const [category, setCategory] = useState(categories[0]);
   const [tags, setTags] = useState('');
   const [example, setExample] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const editParam = searchParams.get('edit');
+    if (editParam) {
+      setIsEditing(true);
+      setEditId(editParam);
+      // Load the question from localStorage
+      const stored = localStorage.getItem('customQuestions');
+      if (stored) {
+        const questions = JSON.parse(stored);
+        const question = questions.find(q => q.id === editParam);
+        if (question) {
+          setTitle(question.title || '');
+          setDescription(question.description || '');
+          setDifficulty(question.difficulty || 'Medium');
+          setCategory(question.category || categories[0]);
+          setTags((question.tags || []).join(', '));
+          setExample(question.example || '');
+        }
+      }
+    }
+  }, [searchParams]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -36,8 +62,8 @@ export default function AddQuestionPage({ onAddQuestion }) {
     }
 
     setIsSubmitting(true);
-    const newQuestion = {
-      id: Date.now().toString(),
+    const questionData = {
+      id: isEditing ? editId : Date.now().toString(),
       title: title.trim(),
       description: description.trim(),
       difficulty,
@@ -48,25 +74,40 @@ export default function AddQuestionPage({ onAddQuestion }) {
       createdAt: new Date(),
       isCustom: true,
     };
-    if (onAddQuestion) onAddQuestion(newQuestion);
+
+    if (isEditing) {
+      // Update existing question
+      const stored = localStorage.getItem('customQuestions');
+      if (stored) {
+        const questions = JSON.parse(stored);
+        const index = questions.findIndex(q => q.id === editId);
+        if (index !== -1) {
+          questions[index] = questionData;
+          localStorage.setItem('customQuestions', JSON.stringify(questions));
+        }
+      }
+    } else {
+      // Add new question
+      if (onAddQuestion) onAddQuestion(questionData);
+    }
+
     setIsSubmitting(false);
     navigate('/problems');
   };
 
   const titleLength = title.length;
   const descriptionLength = description.length;
-  const isFormValid = title.length >= 5 && description.length >= 20 && category;
 
   return (
     <div className="max-w-4xl space-y-6">
       <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Add New Question</h1>
-        <p className="text-muted-foreground">Share a new problem with the community.</p>
+        <h1 className="text-4xl font-bold text-foreground mb-2">{isEditing ? 'Edit Question' : 'Add New Question'}</h1>
+        <p className="text-muted-foreground">{isEditing ? 'Update the problem details.' : 'Share a new problem with the community.'}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Create Question</CardTitle>
+          <CardTitle>{isEditing ? 'Edit Question' : 'Create Question'}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -107,7 +148,6 @@ export default function AddQuestionPage({ onAddQuestion }) {
                     className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:ring-2 focus:ring-primary/20"
                     required
                   >
-                    <option value="">Select a category</option>
                     {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
                 </div>
@@ -149,8 +189,8 @@ export default function AddQuestionPage({ onAddQuestion }) {
 
               <div className="flex gap-4">
                 <Button variant="outline" onClick={() => navigate(-1)} className="flex-1">Cancel</Button>
-                <Button type="submit" className="flex-1" disabled={!isFormValid || isSubmitting}>
-                  {isSubmitting ? 'Creating...' : 'Create Question'}
+                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating...' : isEditing ? 'Update Question' : 'Create Question'}
                 </Button>
               </div>
             </form>

@@ -164,20 +164,6 @@ export function DashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-5 w-5 text-purple-500" />
-                  Manage Candidates
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">Review and track candidate submissions</p>
-                <Link to="/contests">
-                  <Button size="sm" variant="outline" className="w-full">View All</Button>
-                </Link>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-orange-500" />
                   Leaderboard
                 </CardTitle>
