@@ -46,6 +46,34 @@ app.post('/api/run', async (req, res) => {
     return res.status(400).json({ error: `Unsupported language: ${language}` });
   }
 
+  let processedCode = code;
+
+  // For Java, wrap the code with imports and main method
+  if (language === 'java') {
+    // Parse method name from the code
+    const methodMatch = code.match(/public\s+\w+\s+(\w+)\s*\(/);
+    const methodName = methodMatch ? methodMatch[1] : 'twoSum'; // fallback
+
+    processedCode = `import java.util.*;
+
+${code}
+
+public class Main {
+    public static void main(String[] args) {
+        Solution s = new Solution();
+        // Hardcoded test for demo - in real app, this would be based on problem
+        if ("${methodName}".equals("twoSum")) {
+            int[] nums = {2,7,11,15};
+            int target = 9;
+            int[] result = s.twoSum(nums, target);
+            System.out.println(Arrays.toString(result));
+        } else {
+            System.out.println("Method ${methodName} executed");
+        }
+    }
+}`;
+  }
+
   try {
     const baseUrl = process.env.JUDGE0_BASE_URL || 'https://ce.judge0.com';
     const apiKey = process.env.JUDGE0_API_KEY;
@@ -59,7 +87,7 @@ app.post('/api/run', async (req, res) => {
           ...(apiKey ? { 'X-RapidAPI-Key': apiKey } : {}),
         },
         body: JSON.stringify({
-          source_code: code,
+          source_code: processedCode,
           language_id,
           stdin: stdin || '',
         }),
