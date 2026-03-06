@@ -1,23 +1,45 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Edit, Trash2 } from 'lucide-react';
 import { BookmarkButton } from "../components/BookmarkButton";
 import { problems as defaultProblems } from '../data/problems';
+import { useAuth } from '../context/AuthContext';
 
 export function ProblemsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('All');
   const [filterCategory, setFilterCategory] = useState('All');
   const [customQuestions, setCustomQuestions] = useState([]);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isInterviewer = user?.role === 'interviewer';
 
-  useEffect(() => {
+  const loadCustomQuestions = () => {
     const stored = localStorage.getItem('customQuestions');
     if (stored) {
       setCustomQuestions(JSON.parse(stored));
+    } else {
+      setCustomQuestions([]);
     }
+  };
+
+  const deleteCustomQuestion = (id) => {
+    const updated = customQuestions.filter(q => q.id !== id);
+    setCustomQuestions(updated);
+    localStorage.setItem('customQuestions', JSON.stringify(updated));
+  };
+
+  const editCustomQuestion = (id) => {
+    navigate(`/add-question?edit=${id}`);
+  };
+
+  useEffect(() => {
+    loadCustomQuestions();
+    window.addEventListener('focus', loadCustomQuestions);
+    return () => window.removeEventListener('focus', loadCustomQuestions);
   }, []);
 
   const allProblems = [...defaultProblems, ...customQuestions];
@@ -124,6 +146,16 @@ export function ProblemsPage() {
                       Solve
                     </Button>
                   </Link>
+                  {problem.isCustom && isInterviewer && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => editCustomQuestion(problem.id)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => deleteCustomQuestion(problem.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                   <ArrowRight className="h-4 w-4" />
                 </div>
               </div>
