@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { Flame, Trophy, Zap, Code2, Briefcase, FileText, Calendar, Users, Clock, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -30,9 +32,29 @@ export function DashboardPage() {
 
   const stats = user?.role === 'interviewer' ? interviewerStats : userStats;
 
+  // Sample progress data
+  const progressData = [
+    { day: 'Mon', solved: 2 },
+    { day: 'Tue', solved: 3 },
+    { day: 'Wed', solved: 1 },
+    { day: 'Thu', solved: 4 },
+    { day: 'Fri', solved: 2 },
+    { day: 'Sat', solved: 5 },
+    { day: 'Sun', solved: 3 },
+  ];
+
   return (
-    <div className="space-y-8">
-      <div>
+    <motion.div 
+      className="space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
         <h1 className="text-4xl font-bold text-foreground mb-2">
           {user?.role === 'interviewer' ? 'Welcome Back, Interviewer!' : 'Welcome Back!'}
         </h1>
@@ -41,70 +63,140 @@ export function DashboardPage() {
             ? 'Manage interviews and track candidate performance' 
             : 'Continue your learning journey with DSA'}
         </p>
-      </div>
+      </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
+      <motion.div 
+        className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={stat.label}>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    <p className="text-3xl font-bold text-foreground mt-2">{stat.value}</p>
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 * index }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Card className="hover:shadow-lg transition-shadow duration-300">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">{stat.label}</p>
+                      <p className="text-3xl font-bold text-foreground mt-2">{stat.value}</p>
+                    </div>
+                    <Icon className={`h-12 w-12 opacity-50 ${stat.color}`} />
                   </div>
-                  <Icon className={`h-12 w-12 opacity-50 ${stat.color}`} />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
+
+      {/* Progress Chart */}
+      {user?.role !== 'interviewer' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Weekly Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={progressData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="solved" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Quick Actions */}
-      <div className="space-y-6">
+      <motion.div 
+        className="space-y-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-4">Quick Actions</h2>
           <div className="grid md:grid-cols-2 gap-4">
             {user?.role === 'interviewer' ? (
               <>
-                <Link to="/add-question">
-                  <Button className="w-full">
-                    <FileText className="h-4 w-4 mr-2" />
-                    New Problem
-                  </Button>
-                </Link>
-                <Link to="/contests">
-                  <Button variant="outline" className="w-full">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Manage Contests
-                  </Button>
-                </Link>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Link to="/add-question">
+                    <Button className="w-full">
+                      <FileText className="h-4 w-4 mr-2" />
+                      New Problem
+                    </Button>
+                  </Link>
+                </motion.div>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Link to="/contests">
+                    <Button variant="outline" className="w-full">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Manage Contests
+                    </Button>
+                  </Link>
+                </motion.div>
               </>
             ) : (
               <>
-                <Link to="/problems">
-                  <Button className="w-full">
-                    <Code2 className="h-4 w-4 mr-2" />
-                    Solve Problems
-                  </Button>
-                </Link>
-                <Link to="/daily-challenges">
-                  <Button variant="outline" className="w-full">
-                    <Flame className="h-4 w-4 mr-2" />
-                    Daily Challenge
-                  </Button>
-                </Link>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Link to="/problems">
+                    <Button className="w-full">
+                      <Code2 className="h-4 w-4 mr-2" />
+                      Solve Problems
+                    </Button>
+                  </Link>
+                </motion.div>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Link to="/daily-challenges">
+                    <Button variant="outline" className="w-full">
+                      <Flame className="h-4 w-4 mr-2" />
+                      Daily Challenge
+                    </Button>
+                  </Link>
+                </motion.div>
               </>
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Recent Activity */}
-      <div className="space-y-4">
+      <motion.div 
+        className="space-y-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.6 }}
+      >
         <h2 className="text-2xl font-bold text-foreground">
           {user?.role === 'interviewer' ? 'Recent Tests & Candidates' : 'Recent Activity'}
         </h2>
@@ -112,8 +204,14 @@ export function DashboardPage() {
           <CardContent className="pt-6">
             {user?.role === 'interviewer' && recentActivities.length > 0 ? (
               <div className="space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-4 pb-4 border-b border-border last:pb-0 last:border-b-0">
+                {recentActivities.map((activity, index) => (
+                  <motion.div 
+                    key={activity.id} 
+                    className="flex items-start gap-4 pb-4 border-b border-border last:pb-0 last:border-b-0"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 * index }}
+                  >
                     <div className="mt-1 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                       {activity.type === 'test_created' ? (
                         <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -128,19 +226,24 @@ export function DashboardPage() {
                         {new Date(activity.timestamp).toLocaleDateString()} at {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-8">
+              <motion.p 
+                className="text-muted-foreground text-center py-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.8 }}
+              >
                 {user?.role === 'interviewer' 
                   ? 'No recent activity. Create a test to get started!' 
                   : 'No recent activity. Start solving problems!'}
-              </p>
+              </motion.p>
             )}
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
       {/* Additional Interviewer Resources */}
       {user?.role === 'interviewer' && (
@@ -178,6 +281,6 @@ export function DashboardPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
