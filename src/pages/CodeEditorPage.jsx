@@ -7,6 +7,7 @@ import { problems } from '../data/problems';
 import { Play, Copy, RefreshCw, Save, CheckCircle, XCircle, Clock, Zap } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { DiscussionPanel } from '../components/DiscussionPanel';
+import { mockTestCases } from '../../lib/mock-data/test-cases';
 
 export function CodeEditorPage() {
   const { id } = useParams();
@@ -19,6 +20,11 @@ export function CodeEditorPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState(null);
   const editorRef = useRef(null);
+
+  // Use built-in mock test cases for core problems when explicit testCases are not defined
+  const effectiveTestCases = problem.testCases && problem.testCases.length
+    ? problem.testCases
+    : (mockTestCases[problem.id] || []);
 
   const monacoLanguageMap = {
     javascript: 'javascript',
@@ -108,13 +114,13 @@ export function CodeEditorPage() {
   };
 
   const handleRunTestCases = async () => {
-    if (!problem?.testCases?.length) return;
+    if (!effectiveTestCases.length) return [];
 
     setIsRunning(true);
     setTestResults([]);
 
     const results = [];
-    for (const testCase of problem.testCases) {
+    for (const testCase of effectiveTestCases) {
       try {
         const API_BASE = import.meta.env.VITE_API_BASE || '';
         const response = await fetch(`${API_BASE}/api/run`, {
@@ -127,13 +133,15 @@ export function CodeEditorPage() {
           }),
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          const passed = result.stdout?.trim() === testCase.expectedOutput?.trim();
+          if (response.ok) {
+            const result = await response.json();
+            const expected = (testCase.expectedOutput ?? testCase.expected ?? '').toString().trim();
+            const actual = (result.stdout ?? '').toString().trim();
+            const passed = actual === expected;
           results.push({
             ...testCase,
             passed,
-            output: result.stdout || '',
+              output: result.stdout || '',
             status: result.status?.description || 'Unknown',
             time: result.time,
             memory: result.memory,
@@ -158,17 +166,17 @@ export function CodeEditorPage() {
 
     setTestResults(results);
     setIsRunning(false);
+
+    return results;
   };
 
   const handleSubmit = async () => {
     setIsSubmitted(true);
     setSubmissionStatus('running');
 
-    // Run all test cases
-    await handleRunTestCases();
-
-    // Check if all tests passed
-    const allPassed = testResults.every(result => result.passed);
+    // Run all test cases and determine result based on fresh results
+    const results = await handleRunTestCases();
+    const allPassed = (results || []).every(result => result.passed);
     setSubmissionStatus(allPassed ? 'accepted' : 'failed');
   };
 

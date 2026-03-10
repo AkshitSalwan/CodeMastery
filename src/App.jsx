@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { AuthenticateWithRedirectCallback } from "@clerk/react";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -46,7 +47,7 @@ function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/sign-in" replace />;
   }
 
   return children;
@@ -76,6 +77,11 @@ function AppContent() {
   if (!isAuthenticated) {
     return (
       <Routes>
+        {/* Clerk OAuth / SSO callback */}
+        <Route
+          path="/sso-callback"
+          element={<AuthenticateWithRedirectCallback redirectUrl="/dashboard" />}
+        />
         {/* Allow public access to add-question pages but render them inside the main app layout (nav + sidebar) */}
         <Route
           path="/add-question"
@@ -126,10 +132,10 @@ function AppContent() {
             </div>
           }
         />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/sign-in" element={<LoginPage />} />
+        <Route path="/sign-up" element={<SignupPage />} />
         <Route path="/home" element={<HomePage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/sign-in" replace />} />
       </Routes>
     );
   }
@@ -138,9 +144,13 @@ function AppContent() {
   return (
     <Routes>
       {/* Redirect login/signup if already authenticated */}
-      <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route path="/signup" element={<Navigate to="/" replace />} />
+      <Route path="/sign-in" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/sign-up" element={<Navigate to="/dashboard" replace />} />
       <Route path="/home" element={<HomePage />} />
+      <Route
+        path="/sso-callback"
+        element={<AuthenticateWithRedirectCallback redirectUrl="/" />}
+      />
 
       {/* Dashboard Layout */}
       <Route
@@ -154,7 +164,8 @@ function AppContent() {
                 <main className="flex-1 pt-16 pl-64 overflow-auto">
                   <div className="p-4 sm:p-6 lg:p-8">
                     <Routes>
-                      <Route path="/" element={<DashboardPage />} />
+                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                      <Route path="/dashboard" element={<DashboardPage />} />
                       <Route path="/problems" element={<ProblemsPage />} />
                       <Route path="/add-question" element={<AddQuestionPageWrapper />} />
                       <Route path="/questions/add" element={<AddTopicQuestionPageWrapper />} />
