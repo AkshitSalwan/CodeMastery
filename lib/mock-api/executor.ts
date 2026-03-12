@@ -1,5 +1,5 @@
-import type { Language, Submission, TestResult } from '@/lib/types/problem';
-import { mockTestCases } from '@/lib/mock-data/test-cases';
+import type { Language, Submission, TestResult } from '../../lib/types/problem';
+import { mockTestCases } from '../../lib/mock-data/test-cases';
 
 type ExecutionResult = {
   status: 'Accepted' | 'Wrong Answer' | 'Time Limit Exceeded' | 'Compilation Error';
