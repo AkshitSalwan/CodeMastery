@@ -227,7 +227,7 @@ export function CreateContestPage() {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground min-h-[80px]"
+                  className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground min-h-20"
                   placeholder="Short description of the contest..."
                 />
               </div>
@@ -416,7 +416,7 @@ export function CreateContestPage() {
               <textarea
                 value={rules}
                 onChange={(e) => setRules(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground min-h-[100px]"
+                className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground min-h-25"
                 placeholder="Example:&#10;Each problem has a 5-minute time limit&#10;Cheating will result in disqualification"
               />
             </div>

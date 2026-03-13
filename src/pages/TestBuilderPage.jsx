@@ -424,7 +424,7 @@ export function TestBuilderPage() {
                       <span className="text-xs text-muted-foreground">{p.acceptanceRate ? `${p.acceptanceRate.toFixed(1)}% acceptance` : 'N/A'}</span>
                     </div>
                   </div>
-                  <div className="flex-shrink-0 ml-4 flex flex-col gap-2 items-end">
+                  <div className="shrink-0 ml-4 flex flex-col gap-2 items-end">
                     <button
                       onClick={() => {
                         // prevent duplicate adds
@@ -491,7 +491,7 @@ export function TestBuilderPage() {
                   className="w-full px-6 py-4 flex items-center justify-between hover:bg-secondary/30 transition"
                 >
                   <div className="flex items-center gap-4 flex-1 text-left">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-sm">
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-sm">
                       {index + 1}
                     </div>
                     <div className="flex-1">
@@ -513,7 +513,7 @@ export function TestBuilderPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     {expandedQuestion === question.id ? (
                       <ChevronUp className="h-5 w-5 text-muted-foreground" />
                     ) : (
