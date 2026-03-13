@@ -49,7 +49,7 @@ export function BookmarksPage() {
                     </p>
                   </Link>
 
-                  <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="flex items-center gap-4 shrink-0">
                     <div className="flex gap-2">
                       <Badge variant="outline" className={difficultyColor[problem.difficulty]}>
                         {problem.difficulty}
