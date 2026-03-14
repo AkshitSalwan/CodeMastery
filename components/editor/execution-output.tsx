@@ -23,6 +23,7 @@ export function ExecutionOutput({
   passedTests,
 }: ExecutionOutputProps) {
   const statusConfig = {
+    'Runtime Error': { color: 'bg-pink-500/20 text-pink-700 dark:text-pink-400', icon: AlertCircle },
     'Accepted': { color: 'bg-green-500/20 text-green-700 dark:text-green-400', icon: CheckCircle },
     'Wrong Answer': { color: 'bg-red-500/20 text-red-700 dark:text-red-400', icon: XCircle },
     'Compilation Error': { color: 'bg-orange-500/20 text-orange-700 dark:text-orange-400', icon: AlertCircle },
@@ -61,7 +62,9 @@ export function ExecutionOutput({
           {memory !== undefined && (
             <div>
               <p className="text-sm text-muted-foreground">Memory</p>
-              <p className="text-2xl font-bold text-foreground">{memory}MB</p>
+              <p className="text-2xl font-bold text-foreground">
+                {(memory / 1024).toFixed(2)} MB
+              </p>
             </div>
           )}
         </div>
@@ -90,8 +93,8 @@ export function ExecutionOutput({
                   <div className="space-y-1 text-xs font-mono text-muted-foreground">
                     <p><span className="font-bold">Input:</span> {result.input}</p>
                     <p><span className="font-bold">Expected:</span> {result.expected}</p>
-                    {result.actual && !result.passed && (
-                      <p className="text-red-600 dark:text-red-400">
+                    {result.actual && (
+                      <p className={result.passed ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
                         <span className="font-bold">Actual:</span> {result.actual}
                       </p>
                     )}

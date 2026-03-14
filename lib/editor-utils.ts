@@ -1,4 +1,4 @@
-import type { Language } from '@/lib/types/problem';
+import type { Language } from '../lib/types/problem';
 
 export const languageInfo: Record<Language, { name: string; ext: string }> = {
   javascript: { name: 'JavaScript', ext: 'js' },

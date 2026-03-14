@@ -1,4 +1,4 @@
-import type { TestResult } from '@/lib/types/problem';
+import type { TestResult } from '../../lib/types/problem';
 
 export const mockTestCases: Record<string, TestResult[]> = {
   '1': [

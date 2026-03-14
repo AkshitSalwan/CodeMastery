@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
@@ -13,18 +13,23 @@ export function CodeEditorPage() {
   const { id } = useParams();
   const problem = problems.find(p => p.id === id);
   const [language, setLanguage] = useState('javascript');
-  const [code, setCode] = useState(problem?.starterCode[language] || '');
+  const [code, setCode] = useState('');
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [testResults, setTestResults] = useState([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState(null);
   const editorRef = useRef(null);
+  useEffect(() => {
+    if (problem) {
+      setCode(problem.starterCode[language] || '');
+    }
+  }, [problem, language]);
 
   // Use built-in mock test cases for core problems when explicit testCases are not defined
-  const effectiveTestCases = problem.testCases && problem.testCases.length
+  const effectiveTestCases = problem?.testCases?.length
     ? problem.testCases
-    : (mockTestCases[problem.id] || []);
+    : (mockTestCases[problem?.id] || []);
 
   const monacoLanguageMap = {
     javascript: 'javascript',
@@ -114,7 +119,10 @@ export function CodeEditorPage() {
   };
 
   const handleRunTestCases = async () => {
-    if (!effectiveTestCases.length) return [];
+    if (!code.trim()) {
+      setOutput('Error: No code to run. Please write something in the editor.');
+      return [];
+    }
 
     setIsRunning(true);
     setTestResults([]);
@@ -128,20 +136,28 @@ export function CodeEditorPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             language,
-            code,
+            code: code.trim(),
             stdin: testCase.input,
           }),
         });
 
-          if (response.ok) {
-            const result = await response.json();
-            const expected = (testCase.expectedOutput ?? testCase.expected ?? '').toString().trim();
-            const actual = (result.stdout ?? '').toString().trim();
-            const passed = actual === expected;
+        if (response.ok) {
+          const result = await response.json();
+          const expected = (testCase.expectedOutput ?? testCase.expected ?? '').toString().trim();
+          let actual = '';
+
+          if (result.compile_output) {
+            actual = result.compile_output;
+          } else if (result.stderr) {
+            actual = result.stderr;
+          } else {
+            actual = (result.stdout ?? '').toString().trim();
+          }
+          const passed = actual === expected;
           results.push({
             ...testCase,
             passed,
-              output: result.stdout || '',
+            output: actual,
             status: result.status?.description || 'Unknown',
             time: result.time,
             memory: result.memory,
@@ -203,11 +219,10 @@ export function CodeEditorPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">{problem.title}</CardTitle>
                 <div className="flex gap-2 mt-2">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    problem.difficulty === 'Easy' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                    problem.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                    'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  }`}>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${problem.difficulty === 'Easy' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                      problem.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                    }`}>
                     {problem.difficulty}
                   </span>
                   <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
@@ -356,14 +371,13 @@ export function CodeEditorPage() {
                         ) : (
                           <Clock className="h-5 w-5 text-yellow-500" />
                         )}
-                        <span className={`font-semibold ${
-                          submissionStatus === 'accepted' ? 'text-green-600' :
-                          submissionStatus === 'failed' ? 'text-red-600' :
-                          'text-yellow-600'
-                        }`}>
+                        <span className={`font-semibold ${submissionStatus === 'accepted' ? 'text-green-600' :
+                            submissionStatus === 'failed' ? 'text-red-600' :
+                              'text-yellow-600'
+                          }`}>
                           {submissionStatus === 'accepted' ? 'Accepted' :
-                           submissionStatus === 'failed' ? 'Failed' :
-                           'Running...'}
+                            submissionStatus === 'failed' ? 'Failed' :
+                              'Running...'}
                         </span>
                       </div>
                     </CardContent>
@@ -421,11 +435,11 @@ export function CodeEditorPage() {
             <PanelResizeHandle className="h-2 bg-border hover:bg-accent transition-colors" />
 
             {/* Discussions */}
-            <Panel defaultSize={25} minSize={15}>
+            {/* <Panel defaultSize={25} minSize={15}>
               <div className="h-full p-4 overflow-y-auto">
                 <DiscussionPanel problemId={id} />
               </div>
-            </Panel>
+            </Panel> */}
           </PanelGroup>
         </Panel>
       </PanelGroup>

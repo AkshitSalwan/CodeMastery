@@ -1,4 +1,4 @@
-import { Feedback } from '@/lib/types/user';
+import { Feedback } from '../../lib/types/user';
 
 export const mockFeedback: Feedback[] = [
   {
