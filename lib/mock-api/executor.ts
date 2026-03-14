@@ -32,7 +32,7 @@ export async function executeCode(
 
   // Mock execution - randomly determine outcome
   const outcomes = ['Accepted', 'Wrong Answer', 'Compilation Error'] as const;
-  const randomOutcome = outcomes[Math.floor(Math.random() * outcomes.length)];
+  const randomOutcome = isSubmit ? 'Accepted' : outcomes[Math.floor(Math.random() * outcomes.length)];
 
   // If running only sample tests (not submit), show mixed results for realism
   let testResults: TestResult[] = testCases.map((tc) => ({

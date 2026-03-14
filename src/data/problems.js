@@ -28,10 +28,25 @@ export const problems = [
       python: `def twoSum(nums, target):
     # Write your code here
     return []`,
-      java: `class Solution {
+      java: `import java.util.*;
+
+public class Solution {
     public int[] twoSum(int[] nums, int target) {
         // Write your code here
         return new int[]{};
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        String[] numsStr = sc.nextLine().split(" ");
+        int[] nums = new int[numsStr.length];
+        for (int i = 0; i < numsStr.length; i++) {
+            nums[i] = Integer.parseInt(numsStr[i]);
+        }
+        int target = Integer.parseInt(sc.nextLine());
+        Solution sol = new Solution();
+        int[] res = sol.twoSum(nums, target);
+        System.out.println(Arrays.toString(res));
     }
 }`,
       cpp: `class Solution {
@@ -78,10 +93,47 @@ public:
       python: `def addTwoNumbers(l1, l2):
     # Write your code here
     return None`,
-      java: `class Solution {
+      java: `class ListNode {
+    int val;
+    ListNode next;
+    ListNode(int x) { val = x; }
+}
+
+class Solution {
     public ListNode addTwoNumbers(ListNode l1, ListNode l2) {
         // Write your code here
         return null;
+    }
+
+    public static void main(String[] args) {
+        java.util.Scanner sc = new java.util.Scanner(System.in);
+        String[] l1Str = sc.nextLine().split(" ");
+        String[] l2Str = sc.nextLine().split(" ");
+        ListNode l1 = buildList(l1Str);
+        ListNode l2 = buildList(l2Str);
+        Solution sol = new Solution();
+        ListNode res = sol.addTwoNumbers(l1, l2);
+        printList(res);
+    }
+
+    private static ListNode buildList(String[] arr) {
+        ListNode dummy = new ListNode(0);
+        ListNode curr = dummy;
+        for (String s : arr) {
+            curr.next = new ListNode(Integer.parseInt(s));
+            curr = curr.next;
+        }
+        return dummy.next;
+    }
+
+    private static void printList(ListNode head) {
+        System.out.print("[");
+        while (head != null) {
+            System.out.print(head.val);
+            if (head.next != null) System.out.print(",");
+            head = head.next;
+        }
+        System.out.println("]");
     }
 }`,
       cpp: `class Solution {
@@ -127,10 +179,20 @@ public:
       python: `def lengthOfLongestSubstring(s):
     # Write your code here
     return 0`,
-      java: `class Solution {
+      java: `import java.util.*;
+
+class Solution {
     public int lengthOfLongestSubstring(String s) {
         // Write your code here
         return 0;
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        String s = sc.nextLine();
+        Solution sol = new Solution();
+        int res = sol.lengthOfLongestSubstring(s);
+        System.out.println(res);
     }
 }`,
       cpp: `class Solution {
