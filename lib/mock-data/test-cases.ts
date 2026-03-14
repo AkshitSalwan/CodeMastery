@@ -1,5 +1,7 @@
 import type { TestResult } from '../../lib/types/problem';
 
+// These are the sample test cases shown to users while practicing.
+// We intentionally keep this small (1-2 cases) to match the "visible" test case experience.
 export const mockTestCases: Record<string, TestResult[]> = {
   '1': [
     {
@@ -12,12 +14,6 @@ export const mockTestCases: Record<string, TestResult[]> = {
       testNum: 2,
       input: 'nums = [3,2,4], target = 6',
       expected: '[1,2]',
-      passed: true,
-    },
-    {
-      testNum: 3,
-      input: 'nums = [3,3], target = 6',
-      expected: '[0,1]',
       passed: true,
     },
   ],
@@ -41,12 +37,6 @@ export const mockTestCases: Record<string, TestResult[]> = {
       testNum: 2,
       input: 's = "bbbbb"',
       expected: '1',
-      passed: true,
-    },
-    {
-      testNum: 3,
-      input: 's = "pwwkew"',
-      expected: '3',
       passed: true,
     },
   ],

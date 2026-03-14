@@ -27,7 +27,7 @@ function compareOutput(actual, expected) {
 
 router.post("/", async (req, res) => {
   try {
-    const { language, code, testCases } = req.body;
+    let { language, code, testCases, stdin } = req.body;
 
     if (!language || !code) {
       return res.status(400).json({ error: "Language and code are required" });
@@ -38,6 +38,60 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Unsupported language" });
     }
 
+    // Handle single run (stdin provided)
+    if (stdin !== undefined) {
+      console.log(`Running single code execution with stdin: ${stdin}`);
+
+      let sourceCode = code;
+      if (language === 'java') {
+        const count = (code.match(/class Main/g) || []).length;
+        if (count > 1) {
+          return res.json({
+            status: "Compilation Error",
+            compile_output: "Duplicate class Main. Do not add class declarations in your code.",
+          });
+        }
+      }
+
+      const response = await axios.post(JUDGE0_URL, {
+        source_code: sourceCode,
+        language_id,
+        stdin: stdin,
+      });
+
+      const data = response.data;
+      console.log(`Judge0 response:`, data);
+
+      const status = data.status?.description || 'Unknown';
+      const time = data.time != null ? `${data.time}s` : 'N/A';
+      const memory = data.memory != null ? `${data.memory} KB` : 'N/A';
+
+      if (data.compile_output) {
+        return res.json({
+          status: "Compilation Error",
+          compile_output: data.compile_output,
+          time,
+          memory,
+        });
+      } else if (data.stderr) {
+        return res.json({
+          status: "Runtime Error",
+          stderr: data.stderr,
+          time,
+          memory,
+        });
+      } else {
+        const stdout = data.stdout || '';
+        return res.json({
+          status: "Accepted",
+          stdout,
+          time,
+          memory,
+        });
+      }
+    }
+
+    // Handle multiple test cases
     if (!testCases || testCases.length === 0) {
       return res.status(400).json({ error: "No test cases provided" });
     }
@@ -49,21 +103,38 @@ router.post("/", async (req, res) => {
 
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
-      console.log(`Running Test Case ${i + 1}: Input ->`, tc.input);
 
-      const response = await axios.post(JUDGE0_URL, {
-        source_code: code,
+      console.log(`Running Test Case ${i + 1}`);
+
+      let sourceCode = code;
+      if (language === 'java') {
+        const count = (code.match(/class Main/g) || []).length;
+        if (count > 1) {
+          results.push({
+            status: "Compilation Error",
+            compile_output: "Duplicate class Main. Do not add class declarations in your code.",
+            time: "N/A",
+            memory: "N/A",
+            passed: false,
+          });
+          continue;
+        }
+      }
+
+      const payload = {
+        source_code: sourceCode,
         language_id,
         stdin: tc.input,
-      });
+      };
+
+      const response = await axios.post(JUDGE0_URL, payload);
 
       const data = response.data;
 
-      // Logs to debug what Judge0 returns
-      console.log(`Judge0 response for Test ${i + 1}:`, data);
+      console.log(`Judge0 Response Test ${i + 1}:`, data);
 
       const actual = (data.stdout || "").trim();
-      const expected = tc.expected.trim();
+      const expected = (tc.expected || "").trim();
 
       const passed = compareOutput(actual, expected);
       if (passed) passedTests++;
@@ -78,6 +149,8 @@ router.post("/", async (req, res) => {
         actual,
         passed,
         error: data.stderr || data.compile_output || null,
+        runtime: data.time,
+        memory: data.memory,
       });
     }
 
@@ -85,7 +158,7 @@ router.post("/", async (req, res) => {
       passedTests === testCases.length ? "Accepted" : "Wrong Answer";
 
     console.log(
-      `Final Result: ${passedTests}/${testCases.length} passed, Status: ${finalStatus}`
+      `Final Result: ${passedTests}/${testCases.length} passed`
     );
 
     res.json({
@@ -98,6 +171,7 @@ router.post("/", async (req, res) => {
     });
   } catch (error) {
     console.error("Run Error:", error.message);
+
     res.status(500).json({
       status: "Runtime Error",
       error: "Execution failed",

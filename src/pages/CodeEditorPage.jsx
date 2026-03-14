@@ -19,17 +19,36 @@ export function CodeEditorPage() {
   const [testResults, setTestResults] = useState([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState(null);
+  const [customInput, setCustomInput] = useState('');
+  const [customExpectedOutput, setCustomExpectedOutput] = useState('');
+  const [customRunResult, setCustomRunResult] = useState(null);
+  const [runnerMode, setRunnerMode] = useState('sample'); // 'sample' or 'custom'
   const editorRef = useRef(null);
+
+  const normalizeOutput = (str) => (str || '').replace(/\s+/g, '').replace(/\r/g, '').trim();
+
   useEffect(() => {
     if (problem) {
       setCode(problem.starterCode[language] || '');
     }
   }, [problem, language]);
 
+  useEffect(() => {
+    // Clear results when switching between modes to keep UI consistent
+    if (runnerMode === 'custom') {
+      setTestResults([]);
+    } else {
+      setCustomRunResult(null);
+    }
+  }, [runnerMode]);
+
   // Use built-in mock test cases for core problems when explicit testCases are not defined
   const effectiveTestCases = problem?.testCases?.length
     ? problem.testCases
     : (mockTestCases[problem?.id] || []);
+
+  // Only show a small set of sample test cases (no hidden tests)
+  const displayedTestCases = effectiveTestCases.slice(0, 2);
 
   const monacoLanguageMap = {
     javascript: 'javascript',
@@ -118,6 +137,72 @@ export function CodeEditorPage() {
     }
   };
 
+  const handleRunCustom = async () => {
+    if (!code.trim()) {
+      setOutput('Error: No code to run. Please write something in the editor.');
+      return;
+    }
+
+    setIsRunning(true);
+    setCustomRunResult(null);
+    setOutput('Running custom input on Judge0...');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const response = await fetch(`${API_BASE}/api/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language,
+          code: code.trim(),
+          stdin: customInput,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        setOutput(`Error from backend (${response.status}):\n${errText}`);
+        setIsRunning(false);
+        return;
+      }
+
+      const result = await response.json();
+      const status = result.status?.description || 'Unknown';
+      const time = result.time != null ? `${result.time}s` : 'N/A';
+      const memory = result.memory != null ? `${result.memory} KB` : 'N/A';
+
+      let actual = '';
+      if (result.compile_output) {
+        actual = result.compile_output;
+      } else if (result.stderr) {
+        actual = result.stderr;
+      } else {
+        actual = (result.stdout ?? '').toString();
+      }
+
+      const normalizedExpected = normalizeOutput(customExpectedOutput);
+      const normalizedActual = normalizeOutput(actual);
+      const passed = normalizedExpected ? normalizedActual === normalizedExpected : null;
+
+      setCustomRunResult({
+        passed,
+        actual: actual.trim(),
+        expected: customExpectedOutput.trim(),
+        status,
+        time,
+        memory,
+      });
+
+      const header = status === 'Accepted' ? '✓ Accepted' : `Status: ${status}`;
+      setOutput(`${header}\n\nTime: ${time}\nMemory: ${memory}\n\nOutput:\n${actual}`);
+    } catch (err) {
+      console.error(err);
+      setOutput('Unexpected error while talking to Judge0.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   const handleRunTestCases = async () => {
     if (!code.trim()) {
       setOutput('Error: No code to run. Please write something in the editor.');
@@ -128,7 +213,7 @@ export function CodeEditorPage() {
     setTestResults([]);
 
     const results = [];
-    for (const testCase of effectiveTestCases) {
+    for (const testCase of displayedTestCases) {
       try {
         const API_BASE = import.meta.env.VITE_API_BASE || '';
         const response = await fetch(`${API_BASE}/api/run`, {
@@ -143,7 +228,7 @@ export function CodeEditorPage() {
 
         if (response.ok) {
           const result = await response.json();
-          const expected = (testCase.expectedOutput ?? testCase.expected ?? '').toString().trim();
+          const expected = (testCase.expectedOutput ?? testCase.expected ?? '').toString();
           let actual = '';
 
           if (result.compile_output) {
@@ -151,13 +236,14 @@ export function CodeEditorPage() {
           } else if (result.stderr) {
             actual = result.stderr;
           } else {
-            actual = (result.stdout ?? '').toString().trim();
+            actual = (result.stdout ?? '').toString();
           }
-          const passed = actual === expected;
+
+          const passed = normalizeOutput(actual) === normalizeOutput(expected);
           results.push({
             ...testCase,
             passed,
-            output: actual,
+            output: actual.trim(),
             status: result.status?.description || 'Unknown',
             time: result.time,
             memory: result.memory,
@@ -202,11 +288,19 @@ export function CodeEditorPage() {
   };
 
   const handleReset = () => {
+    const confirmed = window.confirm(
+      'Resetting will discard any changes you made. Do you want to continue?'
+    );
+    if (!confirmed) return;
+
     setCode(problem.starterCode[language] || '');
     setOutput('');
     setTestResults([]);
     setIsSubmitted(false);
     setSubmissionStatus(null);
+    setCustomInput('');
+    setCustomExpectedOutput('');
+    setCustomRunResult(null);
   };
 
   return (
@@ -320,9 +414,9 @@ export function CodeEditorPage() {
                       <RefreshCw className="h-4 w-4 mr-1" />
                       Reset
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleRunTestCases} disabled={isRunning}>
+                    <Button size="sm" variant="outline" onClick={handleRun} disabled={isRunning}>
                       <Play className="h-4 w-4 mr-1" />
-                      {isRunning ? 'Running...' : 'Run Tests'}
+                      {isRunning ? 'Running...' : 'Run'}
                     </Button>
                     <Button size="sm" onClick={handleSubmit} disabled={isRunning || isSubmitted}>
                       <Save className="h-4 w-4 mr-1" />
@@ -330,8 +424,6 @@ export function CodeEditorPage() {
                     </Button>
                   </div>
                 </div>
-
-                {/* Code Editor */}
                 <Card className="flex-1 flex flex-col overflow-hidden">
                   <Editor
                     height="100%"
@@ -384,14 +476,85 @@ export function CodeEditorPage() {
                   </Card>
                 )}
 
-                {/* Test Results */}
-                {testResults.length > 0 && (
+                {/* Mode toggle */}
+                <div className="flex items-center gap-2">
+                  <button
+                    className={`px-3 py-1 rounded-lg text-sm font-semibold transition ${runnerMode === 'sample' ? 'bg-primary text-primary-foreground' : 'bg-secondary/30 text-foreground'}`}
+                    onClick={() => setRunnerMode('sample')}
+                    type="button"
+                  >
+                    Sample Tests
+                  </button>
+                  <button
+                    className={`px-3 py-1 rounded-lg text-sm font-semibold transition ${runnerMode === 'custom' ? 'bg-primary text-primary-foreground' : 'bg-secondary/30 text-foreground'}`}
+                    onClick={() => setRunnerMode('custom')}
+                    type="button"
+                  >
+                    Custom Input
+                  </button>
+                </div>
+
+                {/* Custom Input */}
+                {runnerMode === 'custom' && (
                   <Card>
                     <CardHeader className="py-3 border-b border-border">
                       <CardTitle className="text-sm flex items-center gap-2">
                         <Zap className="h-4 w-4" />
-                        Test Results ({testResults.filter(r => r.passed).length}/{testResults.length})
+                        Custom Input
                       </CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-3 space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-foreground mb-1 block">
+                          Input (stdin)
+                        </label>
+                        <textarea
+                          value={customInput}
+                          onChange={(e) => setCustomInput(e.target.value)}
+                          placeholder="Enter custom stdin input"
+                          className="w-full h-24 p-2 rounded-lg border border-border bg-background text-foreground text-sm font-mono resize-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-foreground mb-1 block">
+                          Expected Output (optional)
+                        </label>
+                        <textarea
+                          value={customExpectedOutput}
+                          onChange={(e) => setCustomExpectedOutput(e.target.value)}
+                          placeholder="Enter expected output (for pass/fail feedback)"
+                          className="w-full h-20 p-2 rounded-lg border border-border bg-background text-foreground text-sm font-mono resize-none"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Button size="sm" variant="outline" onClick={handleRunCustom} disabled={isRunning}>
+                          <Play className="h-4 w-4 mr-1" />
+                          {isRunning ? 'Running...' : 'Run Custom'}
+                        </Button>
+                        {customRunResult && customRunResult.passed != null && (
+                          <span className={`text-sm font-semibold ${customRunResult.passed ? 'text-green-600' : 'text-red-600'}`}>
+                            {customRunResult.passed ? 'Passed' : 'Failed'}
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Test Results */}
+                {runnerMode === 'sample' && testResults.length > 0 && (
+                  <Card>
+                    <CardHeader className="py-3 border-b border-border">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Zap className="h-4 w-4" />
+                          Test Results ({testResults.filter(r => r.passed).length}/{testResults.length})
+                        </CardTitle>
+                        <Button size="sm" variant="outline" onClick={handleRunTestCases} disabled={isRunning}>
+                          <Play className="h-4 w-4 mr-1" />
+                          {isRunning ? 'Running...' : 'Run Tests'}
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="max-h-32 overflow-y-auto py-3">
                       <div className="space-y-2">
@@ -425,7 +588,7 @@ export function CodeEditorPage() {
                         {output}
                       </pre>
                     ) : (
-                      <p className="text-xs text-muted-foreground">Click "Run Tests" to see output</p>
+                      <p className="text-xs text-muted-foreground">Run your code (Run / Run Tests / Run Custom) to see output</p>
                     )}
                   </CardContent>
                 </Card>
