@@ -1,15 +1,37 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useUser } from '@clerk/react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { LEADERBOARD_DATA } from '../data/leaderboard';
 
 export function LeaderboardPage() {
   const [sortBy, setSortBy] = useState('points'); // points, solved, streak
-  const { user } = useAuth();
+  const { user: clerkUser } = useUser();
+  const { profile } = useAuth();
   const [timeframe, setTimeframe] = useState('all'); // all, week, month
 
-  const sortedLeaderboard = [...LEADERBOARD_DATA].sort((a, b) => {
+  const currentUserData = {
+    name: clerkUser?.fullName || clerkUser?.firstName || clerkUser?.username || 'User',
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${clerkUser?.fullName || clerkUser?.firstName || 'User'}`,
+    points: profile?.totalPoints || 0,
+    problemsSolved: profile?.problemsSolved || 0,
+    streak: profile?.streak || 0,
+  };
+
+  const leaderboardWithUser = [
+    ...LEADERBOARD_DATA.filter(u => u.id !== 'user-1'), // Remove placeholder user
+    {
+      id: clerkUser?.id || 'current-user',
+      name: currentUserData.name,
+      avatar: currentUserData.avatar,
+      points: currentUserData.points,
+      problemsSolved: currentUserData.problemsSolved,
+      streak: currentUserData.streak,
+      contests: profile?.contests || 0,
+      avgRating: 4.0,
+    }
+  ].sort((a, b) => {
     switch (sortBy) {
       case 'solved':
         return b.problemsSolved - a.problemsSolved;
@@ -19,9 +41,9 @@ export function LeaderboardPage() {
       default:
         return b.points - a.points;
     }
-  });
+  }).map((user, index) => ({ ...user, rank: index + 1 }));
 
-  const currentUserRank = sortedLeaderboard.find(u => u.id === 'user-1');
+  const sortedLeaderboard = leaderboardWithUser;
 
   const getMedalEmoji = rank => {
     if (rank === 1) return '🥇';
@@ -40,34 +62,33 @@ export function LeaderboardPage() {
         </p>
       </div>
 
-      {/* User's Current Rank - hide for interviewers */}
-      {currentUserRank && user?.role !== 'interviewer' && (
+      {/* User's Current Stats - hide for interviewers */}
+      {profile?.role !== 'interviewer' && (
         <Card className="border-accent/50 bg-accent/5">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <img
-                  src={currentUserRank.avatar}
-                  alt={currentUserRank.name}
+                  src={currentUserData.avatar}
+                  alt={currentUserData.name}
                   className="w-12 h-12 rounded-full"
                 />
                 <div>
-                  <div className="text-sm text-muted-foreground">Your Rank</div>
-                  <div className="text-2xl font-bold text-foreground">#{currentUserRank.rank}</div>
-                  <div className="text-sm text-accent">{currentUserRank.name}</div>
+                  <div className="text-sm text-muted-foreground">Your Stats</div>
+                  <div className="text-2xl font-bold text-foreground">{currentUserData.name}</div>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-8">
                 <div className="text-center">
-                  <div className="text-xl font-bold text-accent">{currentUserRank.points}</div>
+                  <div className="text-xl font-bold text-accent">{currentUserData.points}</div>
                   <div className="text-xs text-muted-foreground">Points</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold text-accent">{currentUserRank.problemsSolved}</div>
+                  <div className="text-xl font-bold text-accent">{currentUserData.problemsSolved}</div>
                   <div className="text-xs text-muted-foreground">Solved</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold text-accent">{currentUserRank.streak}</div>
+                  <div className="text-xl font-bold text-accent">{currentUserData.streak}</div>
                   <div className="text-xs text-muted-foreground">Streak</div>
                 </div>
               </div>
