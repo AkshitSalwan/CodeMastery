@@ -1,5 +1,5 @@
-import type { DiscussionThread } from '@/lib/types/discussion';
-import type { User } from '@/lib/types/user';
+import type { DiscussionThread } from '../../lib/types/discussion';
+import type { User } from '../../lib/types/user';
 
 const mockUsers: User[] = [
   {
@@ -8,6 +8,7 @@ const mockUsers: User[] = [
     email: 'alex@example.com',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
     createdAt: new Date('2024-01-01'),
+    bookmarkedProblems: [],
   },
   {
     id: 'user-2',
@@ -15,6 +16,7 @@ const mockUsers: User[] = [
     email: 'jane@example.com',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jane',
     createdAt: new Date('2024-02-01'),
+    bookmarkedProblems: [],
   },
   {
     id: 'user-3',
@@ -22,6 +24,7 @@ const mockUsers: User[] = [
     email: 'bob@example.com',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob',
     createdAt: new Date('2024-01-15'),
+    bookmarkedProblems: [],
   },
 ];
 

@@ -1,4 +1,4 @@
-import type { UserStats, Achievement } from '@/lib/types/user';
+import type { UserStats, Achievement } from '../..//lib/types/user';
 
 export const mockUserStats: UserStats = {
   userId: 'user-1',
@@ -10,7 +10,7 @@ export const mockUserStats: UserStats = {
   maxStreak: 25,
   level: 8,
   xp: 3850,
-  lastSolvedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday
+  lastSolvedDate: new Date(Date.now() - 1 *24 * 60 * 60 * 1000), // Yesterday
 };
 
 export const mockAchievements: Achievement[] = [

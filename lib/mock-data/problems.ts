@@ -1,4 +1,4 @@
-import type { Problem } from '@/lib/types/problem';
+import type { Problem } from '../../lib/types/problem';
 
 export const mockProblems: Problem[] = [
   {
@@ -15,6 +15,8 @@ export const mockProblems: Problem[] = [
       '-10^9 <= nums[i] <= 10^9',
       '-10^9 <= target <= 10^9'
     ],
+    rating: 4.8,
+    ratingCount: 1250,
     examples: [
       {
         input: 'nums = [2,7,11,15], target = 9',
@@ -97,6 +99,8 @@ The optimal solution uses a hash map to achieve O(n) time complexity.`
       '0 <= Node.val <= 9',
       'It is guaranteed that the list represents a number that does not have leading zeros.'
     ],
+    rating: 4.8,
+    ratingCount: 1250,
     examples: [
       {
         input: 'l1 = [2,4,3], l2 = [5,6,4]',
@@ -181,6 +185,8 @@ We iterate through both lists and perform addition with carry.`
       '0 <= s.length <= 5 * 10^4',
       's consists of English letters, digits, symbols and spaces.'
     ],
+    rating: 4.8,
+    ratingCount: 1250,
     examples: [
       {
         input: 's = "abcabcbb"',
@@ -282,6 +288,8 @@ Where m is the character set size.`
     constraints: [
       '-2^31 <= x <= 2^31 - 1'
     ],
+    rating: 4.8,
+    ratingCount: 1250,
     examples: [
       {
         input: 'x = 123',
@@ -399,6 +407,8 @@ Extract digits and reverse while checking for overflow.
       '0 <= n <= 1000',
       '1 <= m + n <= 2001'
     ],
+    rating: 4.8,
+    ratingCount: 1250,
     examples: [
       {
         input: 'nums1 = [1,3], nums2 = [2]',
