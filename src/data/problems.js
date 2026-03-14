@@ -30,7 +30,7 @@ export const problems = [
     return []`,
       java: `import java.util.*;
 
-public class Solution {
+class Main {
     public int[] twoSum(int[] nums, int target) {
         // Write your code here
         return new int[]{};
@@ -44,7 +44,7 @@ public class Solution {
             nums[i] = Integer.parseInt(numsStr[i]);
         }
         int target = Integer.parseInt(sc.nextLine());
-        Solution sol = new Solution();
+        Main sol = new Main();
         int[] res = sol.twoSum(nums, target);
         System.out.println(Arrays.toString(res));
     }
@@ -99,7 +99,7 @@ public:
     ListNode(int x) { val = x; }
 }
 
-class Solution {
+class Main {
     public ListNode addTwoNumbers(ListNode l1, ListNode l2) {
         // Write your code here
         return null;
@@ -111,7 +111,7 @@ class Solution {
         String[] l2Str = sc.nextLine().split(" ");
         ListNode l1 = buildList(l1Str);
         ListNode l2 = buildList(l2Str);
-        Solution sol = new Solution();
+        Main sol = new Main();
         ListNode res = sol.addTwoNumbers(l1, l2);
         printList(res);
     }
@@ -181,7 +181,7 @@ public:
     return 0`,
       java: `import java.util.*;
 
-class Solution {
+class Main {
     public int lengthOfLongestSubstring(String s) {
         // Write your code here
         return 0;
@@ -190,7 +190,7 @@ class Solution {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         String s = sc.nextLine();
-        Solution sol = new Solution();
+        Main sol = new Main();
         int res = sol.lengthOfLongestSubstring(s);
         System.out.println(res);
     }
@@ -239,10 +239,24 @@ public:
       python: `def maxProfit(prices):
     # Write your code here
     return 0`,
-      java: `class Solution {
+      java: `import java.util.*;
+
+class Main {
     public int maxProfit(int[] prices) {
         // Write your code here
         return 0;
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        String[] pricesStr = sc.nextLine().split(" ");
+        int[] prices = new int[pricesStr.length];
+        for (int i = 0; i < pricesStr.length; i++) {
+            prices[i] = Integer.parseInt(pricesStr[i]);
+        }
+        Main sol = new Main();
+        int res = sol.maxProfit(prices);
+        System.out.println(res);
     }
 }`,
       cpp: `class Solution {
