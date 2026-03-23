@@ -1,11 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getRoleLabel, isAdminRole, isInterviewerRole } from '../utils/roles';
 import {
   LayoutDashboard,
   Code2,
   Flame,
   Trophy,
-  MessageSquare,
   Settings,
   Bookmark,
   Plus,
@@ -15,12 +15,20 @@ import {
   Zap,
   Target,
   ClipboardList,
+  GraduationCap,
+  Home,
 } from 'lucide-react';
+
+const publicNavItems = [
+  { label: 'Home', href: '/home', icon: Home },
+  { label: 'Problems', href: '/problems', icon: Code2 },
+];
 
 const userNavItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { label: 'Problems', href: '/problems', icon: Code2 },
   { label: 'Topics', href: '/topics', icon: Layers },
+  { label: 'Learning Hub', href: '/learners-platform', icon: GraduationCap },
   { label: 'Bookmarks', href: '/bookmarks', icon: Bookmark },
 ];
 
@@ -50,10 +58,13 @@ const interviewerAdminItems = [
 export function Sidebar() {
   const location = useLocation();
   const { user } = useAuth();
+  const role = user?.role;
 
-  const isInterviewer = user?.role === 'interviewer';
-  const mainNavItems = isInterviewer ? interviewerNavItems : userNavItems;
-  const showChallengeItems = !isInterviewer;
+  const isInterviewer = isInterviewerRole(role);
+  const isAdmin = isAdminRole(role);
+  const mainNavItems = !user ? publicNavItems : isInterviewer ? interviewerNavItems : userNavItems;
+  const showChallengeItems = !!user && !isInterviewer;
+  const showAdminSection = isInterviewer || isAdmin;
 
   return (
     <aside className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 border-r border-border bg-background overflow-y-auto">
@@ -64,7 +75,8 @@ export function Sidebar() {
           // keep the "Topics" link active when viewing a specific topic
           const isActive =
             location.pathname === item.href ||
-            (item.href === '/topics' && location.pathname.startsWith('/topics'));
+            (item.href === '/topics' && location.pathname.startsWith('/topics')) ||
+            (item.href === '/learners-platform' && location.pathname.startsWith('/learners-platform'));
           return (
             <Link
               key={item.href}
@@ -108,7 +120,7 @@ export function Sidebar() {
       )}
 
       {/* Feedback section */}
-      {!isInterviewer && (
+      {user && !isInterviewer && (
         <div className="p-4 border-t border-border space-y-2">
           <Link
             to="/feedback"
@@ -125,37 +137,43 @@ export function Sidebar() {
       )}
 
       {/* Admin section */}
-      <div className="p-4 border-t border-border space-y-4">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase px-2">Admin</p>
-          {(isInterviewer ? interviewerAdminItems : adminItems).map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
+      {user ? (
+        <div className="p-4 border-t border-border space-y-4">
+          {showAdminSection ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase px-2">
+                {getRoleLabel(role)}
+              </p>
+              {(isInterviewer ? interviewerAdminItems : adminItems).map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
 
-        <Link
-          to="/settings"
-          className="flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors"
-        >
-          <Settings className="h-5 w-5" />
-          Settings
-        </Link>
-      </div>
+          <Link
+            to="/settings"
+            className="flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors"
+          >
+            <Settings className="h-5 w-5" />
+            Settings
+          </Link>
+        </div>
+      ) : null}
     </aside>
   );
 }

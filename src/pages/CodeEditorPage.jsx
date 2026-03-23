@@ -8,10 +8,13 @@ import { Play, Copy, RefreshCw, Save, CheckCircle, XCircle, Clock, Zap } from 'l
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { DiscussionPanel } from '../components/DiscussionPanel';
 import { mockTestCases } from '../../lib/mock-data/test-cases';
+import { useAuth } from '../context/AuthContext';
+import { buildExecutionCode, compareExecutionOutput } from '../utils/problemExecution';
 
 export function CodeEditorPage() {
   const { id } = useParams();
   const problem = problems.find(p => p.id === id);
+  const { markProblemSolved } = useAuth();
   const [language, setLanguage] = useState('javascript');
   const [code, setCode] = useState('');
   const [output, setOutput] = useState('');
@@ -216,13 +219,18 @@ export function CodeEditorPage() {
     for (const testCase of displayedTestCases) {
       try {
         const API_BASE = import.meta.env.VITE_API_BASE || '';
+        const executionCode = buildExecutionCode({
+          language,
+          code: code.trim(),
+          testCaseInput: testCase.input,
+        });
         const response = await fetch(`${API_BASE}/api/run`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             language,
-            code: code.trim(),
-            stdin: testCase.input,
+            code: executionCode,
+            stdin: '',
           }),
         });
 
@@ -239,7 +247,7 @@ export function CodeEditorPage() {
             actual = (result.stdout ?? '').toString();
           }
 
-          const passed = normalizeOutput(actual) === normalizeOutput(expected);
+          const passed = compareExecutionOutput(actual, expected);
           results.push({
             ...testCase,
             passed,
@@ -280,6 +288,10 @@ export function CodeEditorPage() {
     const results = await handleRunTestCases();
     const allPassed = (results || []).every(result => result.passed);
     setSubmissionStatus(allPassed ? 'accepted' : 'failed');
+
+    if (allPassed && problem) {
+      markProblemSolved(problem);
+    }
   };
 
   const handleCopy = () => {

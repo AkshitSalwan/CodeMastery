@@ -21,10 +21,10 @@ export function HomePage() {
           <div className="text-2xl font-bold text-accent">CodeMastery</div>
           <div className="flex gap-4 items-center">
             <ThemeToggle />
-            <Link to="/login">
-              <Button variant="ghost">Login</Button>
+            <Link to="/sign-in">
+              <Button variant="ghost">Sign In</Button>
             </Link>
-            <Link to="/">
+            <Link to="/sign-up">
               <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
                 Get Started
               </Button>
@@ -43,7 +43,7 @@ export function HomePage() {
             Solve hundreds of DSA problems with an interactive code editor, detailed solutions, and real-time feedback.
           </p>
           <div className="flex gap-4 justify-center">
-            <Link to="/">
+            <Link to="/sign-up">
               <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
                 Start Learning <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -92,12 +92,14 @@ export function HomePage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-16">
             <h2 className="text-3xl font-bold text-foreground">Explore Topics</h2>
-            <Button variant="outline">View All Topics</Button>
+            <Link to="/sign-up">
+              <Button variant="outline">Start With a Free Account</Button>
+            </Link>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {topics.map((topic) => (
-              <Link key={topic.name} to={`/?topic=${topic.name}`}>
+              <Link key={topic.name} to="/sign-up">
                 <div className="p-6 rounded-lg border border-border bg-card hover:border-accent transition-colors cursor-pointer">
                   <div className="text-4xl mb-4">{topic.icon}</div>
                   <h3 className="text-lg font-bold text-foreground">{topic.name}</h3>
@@ -116,7 +118,7 @@ export function HomePage() {
           <p className="text-muted-foreground mb-8">
             Join thousands of developers learning DSA on CodeMastery
           </p>
-          <Link to="/">
+          <Link to="/sign-up">
             <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
               Start Free <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -127,7 +129,7 @@ export function HomePage() {
       {/* Footer */}
       <footer className="border-t border-border bg-background py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto text-center text-muted-foreground">
-          <p>&copy; 2024 CodeMastery. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} CodeMastery. All rights reserved.</p>
         </div>
       </footer>
     </div>
