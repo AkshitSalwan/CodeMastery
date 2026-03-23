@@ -1,15 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Link } from 'react-router-dom';
-import { Flame, Trophy, Zap, Code2, Briefcase, FileText, Calendar, Users, Clock, CheckCircle2 } from 'lucide-react';
+import { Flame, Trophy, Zap, Code2, Briefcase, FileText, Calendar, Users, Clock, CheckCircle2, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { isInterviewerRole } from '../utils/roles';
 
 export function DashboardPage() {
   const { user } = useAuth();
   const [recentActivities, setRecentActivities] = useState([]);
+  const isInterviewer = isInterviewerRole(user?.role);
 
   useEffect(() => {
     const activities = JSON.parse(localStorage.getItem('recentActivities') || '[]');
@@ -30,7 +32,7 @@ export function DashboardPage() {
     { label: 'Interviews', value: '19', icon: Users, color: 'text-purple-500' },
   ];
 
-  const stats = user?.role === 'interviewer' ? interviewerStats : userStats;
+  const stats = isInterviewer ? interviewerStats : userStats;
 
   // Sample progress data
   const progressData = [
@@ -56,10 +58,10 @@ export function DashboardPage() {
         transition={{ duration: 0.5, delay: 0.1 }}
       >
         <h1 className="text-4xl font-bold text-foreground mb-2">
-          {user?.role === 'interviewer' ? 'Welcome Back, Interviewer!' : 'Welcome Back!'}
+          {isInterviewer ? 'Welcome Back, Interviewer!' : 'Welcome Back!'}
         </h1>
         <p className="text-muted-foreground">
-          {user?.role === 'interviewer' 
+          {isInterviewer 
             ? 'Manage interviews and track candidate performance' 
             : 'Continue your learning journey with DSA'}
         </p>
@@ -100,7 +102,7 @@ export function DashboardPage() {
       </motion.div>
 
       {/* Progress Chart */}
-      {user?.role !== 'interviewer' && (
+      {!isInterviewer && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -134,8 +136,8 @@ export function DashboardPage() {
       >
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-4">Quick Actions</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            {user?.role === 'interviewer' ? (
+          <div className={`grid gap-4 ${isInterviewer ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+            {isInterviewer ? (
               <>
                 <motion.div
                   whileHover={{ scale: 1.02 }}
@@ -184,6 +186,17 @@ export function DashboardPage() {
                     </Button>
                   </Link>
                 </motion.div>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Link to="/learners-platform">
+                    <Button variant="outline" className="w-full">
+                      <GraduationCap className="h-4 w-4 mr-2" />
+                      Learning Hub
+                    </Button>
+                  </Link>
+                </motion.div>
               </>
             )}
           </div>
@@ -198,11 +211,11 @@ export function DashboardPage() {
         transition={{ duration: 0.5, delay: 0.6 }}
       >
         <h2 className="text-2xl font-bold text-foreground">
-          {user?.role === 'interviewer' ? 'Recent Tests & Candidates' : 'Recent Activity'}
+          {isInterviewer ? 'Recent Tests & Candidates' : 'Recent Activity'}
         </h2>
         <Card>
           <CardContent className="pt-6">
-            {user?.role === 'interviewer' && recentActivities.length > 0 ? (
+            {isInterviewer && recentActivities.length > 0 ? (
               <div className="space-y-4">
                 {recentActivities.map((activity, index) => (
                   <motion.div 
@@ -236,7 +249,7 @@ export function DashboardPage() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.8 }}
               >
-                {user?.role === 'interviewer' 
+                {isInterviewer 
                   ? 'No recent activity. Create a test to get started!' 
                   : 'No recent activity. Start solving problems!'}
               </motion.p>
@@ -246,7 +259,7 @@ export function DashboardPage() {
       </motion.div>
 
       {/* Additional Interviewer Resources */}
-      {user?.role === 'interviewer' && (
+      {isInterviewer && (
         <div className="space-y-4">
           <h2 className="text-2xl font-bold text-foreground">Interviewer Resources</h2>
           <div className="grid md:grid-cols-3 gap-4">

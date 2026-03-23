@@ -1,35 +1,16 @@
 require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const judgeService = require('./services/judgeService');
+const compareOutput = require('./utils/compareOutput');
+const learnersPlatformRouter = require('../learners-platform/backend');
 
-const app = express();
-app.use(express.json());
-
-/* ---------------- HEALTH CHECK ---------------- */
-
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-/* ---------------- RUN CODE ---------------- */
-
-app.post('/api/run', async (req, res) => {
-  const { language, code, testCases, stdin } = req.body || {};
-
-  if (!code || !language) {
-    return res.status(400).json({ error: 'Missing code or language' });
-  }
-
-  let processedCode = code;
-
-  /* -------- JAVA DRIVER WRAPPER -------- */
-
-  if (language === 'java') {
+function buildJavaDriver(code) {
   const methodMatch = code.match(/public\s+\w+\s+(\w+)\s*\(/);
   const methodName = methodMatch ? methodMatch[1] : 'twoSum';
 
-  processedCode = `
+  return `
 import java.util.*;
 import java.io.*;
 
@@ -41,11 +22,9 @@ public class Main {
 
     Solution s = new Solution();
 
-    // Read first line as array of integers
     String[] parts = sc.nextLine().trim().split(" ");
     int[] nums = Arrays.stream(parts).mapToInt(Integer::parseInt).toArray();
 
-    // Read second line as integer target
     int target = Integer.parseInt(sc.nextLine().trim());
 
     int[] result = s.${methodName}(nums, target);
@@ -56,74 +35,106 @@ public class Main {
 `;
 }
 
-  try {
+function createApp() {
+  const app = express();
 
-    /* -------- SINGLE EXECUTION (Run Button) -------- */
+  app.disable('x-powered-by');
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-    if (!testCases || testCases.length === 0) {
-
-      const data = await judgeService.runJudge(language, processedCode, stdin || '');
-
-      return res.json(data);
-    }
-
-    /* -------- TESTCASE MODE (Submit Button) -------- */
-
-    let results = [];
-    let passedTests = 0;
-
-    for (const tc of testCases) {
-
-      const data = await judgeService.runJudge(language, processedCode, tc.input);
-
-      const actual = (data.stdout || "").trim();
-      const expected = tc.expected.trim();
-
-      const passed = actual === expected;
-
-      if (passed) passedTests++;
-
-      results.push({
-        input: tc.input,
-        expected,
-        actual,
-        passed
-      });
-    }
-
-    return res.json({
-      status: passedTests === testCases.length ? "Accepted" : "Wrong Answer",
-      totalTests: testCases.length,
-      passedTests,
-      testResults: results
-    });
-
-  } catch (err) {
-
-    console.error('Judge0 error:', err);
-
-    return res.status(500).json({
-      error: 'Failed to execute code'
-    });
-  }
-});
-
-/* ---------------- PRODUCTION FRONTEND ---------------- */
-
-if (process.env.NODE_ENV === 'production') {
-
-  app.use(express.static(path.join(__dirname, '../dist')));
-
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok' });
   });
 
+  app.use('/api/learners-platform', learnersPlatformRouter);
+
+  app.post('/api/run', async (req, res) => {
+    const { language, code, testCases, stdin } = req.body || {};
+
+    if (!code || !language) {
+      return res.status(400).json({ error: 'Missing code or language' });
+    }
+
+    const processedCode =
+      language === 'java' && !/public\s+class\s+Main\b/.test(code)
+        ? buildJavaDriver(code)
+        : code;
+
+    try {
+      if (!testCases || testCases.length === 0) {
+        const data = await judgeService.runJudge(language, processedCode, stdin || '');
+        return res.json(data);
+      }
+
+      const results = [];
+      let passedTests = 0;
+
+      for (const testCase of testCases) {
+        const data = await judgeService.runJudge(language, processedCode, testCase.input);
+        const actual = (data.compile_output || data.stderr || data.stdout || '').trim();
+        const expected = String(testCase.expected || '').trim();
+        const passed = compareOutput(actual, expected);
+
+        if (passed) {
+          passedTests++;
+        }
+
+        results.push({
+          input: testCase.input,
+          expected,
+          actual,
+          passed,
+          runtime: data.time || null,
+          memory: data.memory || null,
+          error: data.stderr || data.compile_output || null,
+        });
+      }
+
+      return res.json({
+        status: passedTests === testCases.length ? 'Accepted' : 'Wrong Answer',
+        totalTests: testCases.length,
+        passedTests,
+        testResults: results,
+      });
+    } catch (error) {
+      console.error('Judge0 error:', error);
+
+      return res.status(500).json({
+        error: 'Failed to execute code',
+      });
+    }
+  });
+
+  app.use('/api', (req, res) => {
+    res.status(404).json({ error: 'API route not found' });
+  });
+
+  if (process.env.NODE_ENV === 'production') {
+    const distPath = path.join(__dirname, '../dist');
+
+    app.use(express.static(distPath));
+
+    app.get(/^\/(?!api).*/, (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
+  return app;
 }
 
-/* ---------------- SERVER START ---------------- */
+function startServer(port = Number(process.env.PORT) || 4000) {
+  const app = createApp();
 
-const PORT = process.env.PORT || 5001;
+  return app.listen(port, () => {
+    console.log(`Server listening on http://localhost:${port}`);
+  });
+}
 
-app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = {
+  createApp,
+  startServer,
+};

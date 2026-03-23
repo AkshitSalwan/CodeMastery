@@ -1,17 +1,20 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
+import { Button } from './Button';
 import { LogOut, User, Settings } from 'lucide-react';
 import { useState } from 'react';
+import { getRoleLabel } from '../utils/roles';
 
 export function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    setShowMenu(false);
+    navigate('/sign-in');
   };
 
   return (
@@ -21,12 +24,20 @@ export function Navbar() {
           <div className="text-2xl font-bold text-accent">CodeMastery</div>
           {user && (
             <div className="text-xs font-semibold text-accent uppercase px-2 py-1 rounded-full bg-accent/10">
-              {user.role === 'interviewer' ? '👔 Interviewer' : '👨‍💻 User'}
+              {getRoleLabel(user.role)}
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-4">
+          {!user ? (
+            <>
+              <Button variant="ghost" onClick={() => navigate('/sign-in')}>
+                Sign In
+              </Button>
+              <Button onClick={() => navigate('/sign-up')}>Create Account</Button>
+            </>
+          ) : null}
           {user && (
             <div className="relative">
               <button
@@ -34,14 +45,14 @@ export function Navbar() {
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-secondary/50 transition-colors"
               >
                 <img
-                  src={user.avatar}
+                  src={user.avatar || 'https://api.dicebear.com/7.x/thumbs/svg?seed=CodeMastery'}
                   alt={user.name}
                   className="w-8 h-8 rounded-full"
                 />
                 <div className="text-left hidden sm:block">
                   <div className="text-sm font-semibold text-foreground">{user.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {user.role === 'interviewer' ? 'Interviewer' : 'User'}
+                    {getRoleLabel(user.role)}
                   </div>
                 </div>
               </button>
