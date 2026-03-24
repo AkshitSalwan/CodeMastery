@@ -212,7 +212,7 @@ const learningTopics = [
       }
     ],
     problemCategories: ['Array', 'String', 'Hash Table', 'Tree', 'Graph', 'Dynamic Programming', 'Sorting', 'Stack', 'Bit Manipulation'],
-    recommendedProblemIds: ['1', '3', '5', '6', '7', '8', '11'],
+    recommendedProblemIds: ['1', '3', '5', '6', '7', '8'],
     practiceFocus: 'This set is arranged to cover a balanced spread of core patterns before you move into harder variants.',
     resources: [
       {
