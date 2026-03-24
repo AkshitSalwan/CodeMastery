@@ -194,10 +194,10 @@ const LearnersPlatformPage = ({ apiBaseUrl = '/api/learners-platform' }) => {
                   <p className="mt-1 text-lg font-semibold text-foreground">
                     {dueReviewTopics.length > 0
                       ? `${dueReviewTopics.length} topics are due for reassessment`
-                      : 'No review topics are due right now'}
+                      : 'No specific review topics due right now'}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Based on {solvedProblemsCount} solved problems tracked in your learning profile.
+                    {dueReviewTopics.length > 0 ? `Based on ${solvedProblemsCount} solved problems tracked in your learning profile.` : 'Keep solving problems to build your personalized review schedule.'}
                   </p>
                 </div>
                 {dueReviewTopics[0] ? (
@@ -207,7 +207,11 @@ const LearnersPlatformPage = ({ apiBaseUrl = '/api/learners-platform' }) => {
                   >
                     Review now
                   </Link>
-                ) : null}
+                ) : (
+                  <Link to="/daily-challenges" className={secondaryLinkStyles}>
+                    Do Daily Challenge
+                  </Link>
+                )}
               </CardContent>
             </Card>
           </div>

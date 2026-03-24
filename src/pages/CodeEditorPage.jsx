@@ -8,13 +8,10 @@ import { Play, Copy, RefreshCw, Save, CheckCircle, XCircle, Clock, Zap } from 'l
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { DiscussionPanel } from '../components/DiscussionPanel';
 import { mockTestCases } from '../../lib/mock-data/test-cases';
-import { useAuth } from '../context/AuthContext';
-import { buildExecutionCode, compareExecutionOutput } from '../utils/problemExecution';
 
 export function CodeEditorPage() {
   const { id } = useParams();
   const problem = problems.find(p => p.id === id);
-  const { markProblemSolved } = useAuth();
   const [language, setLanguage] = useState('javascript');
   const [code, setCode] = useState('');
   const [output, setOutput] = useState('');
@@ -205,80 +202,108 @@ export function CodeEditorPage() {
       setIsRunning(false);
     }
   };
+const handleRunTestCases = async () => {
+  if (!code.trim()) {
+    setOutput('Error: No code to run.');
+    return [];
+  }
 
-  const handleRunTestCases = async () => {
-    if (!code.trim()) {
-      setOutput('Error: No code to run. Please write something in the editor.');
-      return [];
-    }
+  setIsRunning(true);
+  setTestResults([]);
 
-    setIsRunning(true);
-    setTestResults([]);
+  try {
+    const API_BASE = import.meta.env.VITE_API_BASE || '';
 
-    const results = [];
-    for (const testCase of displayedTestCases) {
-      try {
-        const API_BASE = import.meta.env.VITE_API_BASE || '';
-        const executionCode = buildExecutionCode({
-          language,
-          code: code.trim(),
-          testCaseInput: testCase.input,
-        });
-        const response = await fetch(`${API_BASE}/api/run`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            language,
-            code: executionCode,
-            stdin: '',
-          }),
-        });
+    const response = await fetch(`${API_BASE}/api/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        language,
+        code: code.trim(),
+        testCases: displayedTestCases, // ✅ FIXED
+      }),
+    });
 
-        if (response.ok) {
-          const result = await response.json();
-          const expected = (testCase.expectedOutput ?? testCase.expected ?? '').toString();
-          let actual = '';
+    const data = await response.json();
 
-          if (result.compile_output) {
-            actual = result.compile_output;
-          } else if (result.stderr) {
-            actual = result.stderr;
-          } else {
-            actual = (result.stdout ?? '').toString();
-          }
-
-          const passed = compareExecutionOutput(actual, expected);
-          results.push({
-            ...testCase,
-            passed,
-            output: actual.trim(),
-            status: result.status?.description || 'Unknown',
-            time: result.time,
-            memory: result.memory,
-          });
-        } else {
-          results.push({
-            ...testCase,
-            passed: false,
-            output: 'Error',
-            status: 'Error',
-          });
-        }
-      } catch (err) {
-        results.push({
-          ...testCase,
-          passed: false,
-          output: 'Network Error',
-          status: 'Error',
-        });
-      }
-    }
-
-    setTestResults(results);
+    setTestResults(data.testResults || []);
     setIsRunning(false);
 
-    return results;
-  };
+    return data.testResults || [];
+  } catch (err) {
+    console.error(err);
+    setIsRunning(false);
+    return [];
+  }
+};
+  // const handleRunTestCases = async () => {
+  //   if (!code.trim()) {
+  //     setOutput('Error: No code to run. Please write something in the editor.');
+  //     return [];
+  //   }
+
+  //   setIsRunning(true);
+  //   setTestResults([]);
+
+  //   const results = [];
+  //   for (const testCase of displayedTestCases) {
+  //     try {
+  //       const API_BASE = import.meta.env.VITE_API_BASE || '';
+  //       const response = await fetch(`${API_BASE}/api/run`, {
+  //         method: 'POST',
+  //         headers: { 'Content-Type': 'application/json' },
+  //         body: JSON.stringify({
+  //           language,
+  //           code: code.trim(),
+  //           stdin: testCase.input,
+  //         }),
+  //       });
+
+  //       if (response.ok) {
+  //         const result = await response.json();
+  //         const expected = (testCase.expectedOutput ?? testCase.expected ?? '').toString();
+  //         let actual = '';
+
+  //         if (result.compile_output) {
+  //           actual = result.compile_output;
+  //         } else if (result.stderr) {
+  //           actual = result.stderr;
+  //         } else {
+  //           actual = (result.stdout ?? '').toString();
+  //         }
+
+  //         const passed = normalizeOutput(actual) === normalizeOutput(expected);
+  //         results.push({
+  //           ...testCase,
+  //           passed,
+  //           output: actual.trim(),
+  //           status: result.status?.description || 'Unknown',
+  //           time: result.time,
+  //           memory: result.memory,
+  //         });
+  //       } else {
+  //         results.push({
+  //           ...testCase,
+  //           passed: false,
+  //           output: 'Error',
+  //           status: 'Error',
+  //         });
+  //       }
+  //     } catch (err) {
+  //       results.push({
+  //         ...testCase,
+  //         passed: false,
+  //         output: 'Network Error',
+  //         status: 'Error',
+  //       });
+  //     }
+  //   }
+
+  //   setTestResults(results);
+  //   setIsRunning(false);
+
+  //   return results;
+  // };
 
   const handleSubmit = async () => {
     setIsSubmitted(true);
@@ -288,10 +313,6 @@ export function CodeEditorPage() {
     const results = await handleRunTestCases();
     const allPassed = (results || []).every(result => result.passed);
     setSubmissionStatus(allPassed ? 'accepted' : 'failed');
-
-    if (allPassed && problem) {
-      markProblemSolved(problem);
-    }
   };
 
   const handleCopy = () => {
@@ -426,9 +447,9 @@ export function CodeEditorPage() {
                       <RefreshCw className="h-4 w-4 mr-1" />
                       Reset
                     </Button>
-                    <Button size="sm" variant="outline" onClick={handleRun} disabled={isRunning}>
+                    <Button size="sm" variant="outline" onClick={handleRunTestCases} disabled={isRunning}>
                       <Play className="h-4 w-4 mr-1" />
-                      {isRunning ? 'Running...' : 'Run'}
+                      {isRunning ? 'Running...' : 'Run Tests'}
                     </Button>
                     <Button size="sm" onClick={handleSubmit} disabled={isRunning || isSubmitted}>
                       <Save className="h-4 w-4 mr-1" />
@@ -549,6 +570,16 @@ export function CodeEditorPage() {
                           </span>
                         )}
                       </div>
+                      {/* Show output for Custom Run since Console Output section is removed */}
+                      {customRunResult && (
+                        <div className="mt-4 pt-4 border-t border-border">
+                          <label className="text-xs font-semibold text-foreground mb-2 block">Output:</label>
+                          <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap bg-secondary/30 p-2 rounded max-h-40 overflow-y-auto">
+                            {customRunResult.actual || (customRunResult.status === 'Error' ? 'Error occurred' : 'No output')}
+                          </pre>
+                          {customRunResult.time && <p className="text-xs text-muted-foreground mt-1">Time: {customRunResult.time} | Memory: {customRunResult.memory}</p>}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
@@ -588,22 +619,6 @@ export function CodeEditorPage() {
                     </CardContent>
                   </Card>
                 )}
-
-                {/* Output */}
-                <Card className="flex-1 flex flex-col">
-                  <CardHeader className="py-3 border-b border-border">
-                    <CardTitle className="text-sm">Console Output</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex-1 overflow-y-auto py-3">
-                    {output ? (
-                      <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap">
-                        {output}
-                      </pre>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Run your code (Run / Run Tests / Run Custom) to see output</p>
-                    )}
-                  </CardContent>
-                </Card>
               </div>
             </Panel>
 
