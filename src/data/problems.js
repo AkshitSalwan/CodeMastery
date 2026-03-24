@@ -20,6 +20,10 @@ export const problems = [
         explanation: 'The sum of 2 and 7 is 9. Therefore, index0 = 0, index1 = 1.',
       },
     ],
+    testCases: [
+      { input: "2 7 11 15\n9", expected: "[0, 1]" },
+      { input: "3 2 4\n6", expected: "[1, 2]" }
+    ],
     starterCode: {
       javascript: `function twoSum(nums, target) {
   // Write your code here
@@ -30,7 +34,7 @@ export const problems = [
     return []`,
       java: `import java.util.*;
 
-class Main {
+class Solution {
     public int[] twoSum(int[] nums, int target) {
         // Write your code here
         return new int[]{};
@@ -44,7 +48,7 @@ class Main {
             nums[i] = Integer.parseInt(numsStr[i]);
         }
         int target = Integer.parseInt(sc.nextLine());
-        Main sol = new Main();
+        Solution sol = new Solution();
         int[] res = sol.twoSum(nums, target);
         System.out.println(Arrays.toString(res));
     }
@@ -85,6 +89,9 @@ public:
         explanation: '342 + 465 = 807',
       },
     ],
+    testCases: [
+      { input: "2 4 3\n5 6 4", expected: "[7, 0, 8]" }
+    ],
     starterCode: {
       javascript: `function addTwoNumbers(l1, l2) {
   // Write your code here
@@ -99,7 +106,7 @@ public:
     ListNode(int x) { val = x; }
 }
 
-class Main {
+class Solution {
     public ListNode addTwoNumbers(ListNode l1, ListNode l2) {
         // Write your code here
         return null;
@@ -111,7 +118,7 @@ class Main {
         String[] l2Str = sc.nextLine().split(" ");
         ListNode l1 = buildList(l1Str);
         ListNode l2 = buildList(l2Str);
-        Main sol = new Main();
+        Solution sol = new Solution();
         ListNode res = sol.addTwoNumbers(l1, l2);
         printList(res);
     }
@@ -171,6 +178,10 @@ public:
         explanation: 'The answer is "abc", with the length of 3.',
       },
     ],
+    testCases: [
+      { input: "abcabcbb", expected: "3" },
+      { input: "bbbbb", expected: "1" }
+    ],
     starterCode: {
       javascript: `function lengthOfLongestSubstring(s) {
   // Write your code here
@@ -181,7 +192,7 @@ public:
     return 0`,
       java: `import java.util.*;
 
-class Main {
+class Solution {
     public int lengthOfLongestSubstring(String s) {
         // Write your code here
         return 0;
@@ -190,7 +201,7 @@ class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         String s = sc.nextLine();
-        Main sol = new Main();
+        Solution sol = new Solution();
         int res = sol.lengthOfLongestSubstring(s);
         System.out.println(res);
     }
@@ -231,6 +242,9 @@ public:
         explanation: 'Buy on day 2 (price = 1) and sell on day 5 (price = 6), profit = 5.',
       },
     ],
+    testCases: [
+      { input: "7 1 5 3 6 4", expected: "5" }
+    ],
     starterCode: {
       javascript: `function maxProfit(prices) {
   // Write your code here
@@ -241,7 +255,7 @@ public:
     return 0`,
       java: `import java.util.*;
 
-class Main {
+class Solution {
     public int maxProfit(int[] prices) {
         // Write your code here
         return 0;
@@ -254,7 +268,7 @@ class Main {
         for (int i = 0; i < pricesStr.length; i++) {
             prices[i] = Integer.parseInt(pricesStr[i]);
         }
-        Main sol = new Main();
+        Solution sol = new Solution();
         int res = sol.maxProfit(prices);
         System.out.println(res);
     }
@@ -561,5 +575,72 @@ public:
     explanation: 'XOR all numbers together; duplicates cancel, leaving the unique number.',
     rating: 4.3,
     ratingCount: 6890,
+  },
+  {
+    id: '11',
+    title: 'Container With Most Water',
+    description: 'You are given an integer array height of length n. There are n vertical lines drawn such that the two endpoints of the ith line are (i, 0) and (i, height[i]). Find two lines that together with the x-axis form a container, such that the container contains the most water. Return the maximum amount of water a container can store.',
+    difficulty: 'Medium',
+    category: ['Array', 'Two Pointers', 'Greedy'],
+    acceptanceRate: 54.3,
+    submissions: 2345678,
+    companies: ['Amazon', 'Google', 'Meta'],
+    constraints: [
+      'n == height.length',
+      '2 <= n <= 10^5',
+      '0 <= height[i] <= 10^4',
+    ],
+    examples: [
+      {
+        input: 'height = [1,8,6,2,5,4,8,3,7]',
+        output: '49',
+        explanation: 'The max area of water (blue section) the container can contain is 49.',
+      },
+    ],
+    testCases: [
+      { input: "1 8 6 2 5 4 8 3 7", expected: "49" },
+      { input: "1 1", expected: "1" }
+    ],
+    starterCode: {
+      javascript: `function maxArea(height) {
+  // Write your code here
+  return 0;
+}`,
+      python: `def maxArea(height):
+    # Write your code here
+    return 0`,
+      java: `import java.util.*;
+class Solution {
+    public int maxArea(int[] height) {
+        // Write your code here
+        return 0;
+    }
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        String[] heightStr = sc.nextLine().split(" ");
+        int[] height = new int[heightStr.length];
+        for (int i = 0; i < heightStr.length; i++) {
+            height[i] = Integer.parseInt(heightStr[i]);
+        }
+        Solution sol = new Solution();
+        int res = sol.maxArea(height);
+        System.out.println(res);
+    }
+}`,
+      cpp: `class Solution {
+public:
+    int maxArea(vector<int>& height) {
+        // Write your code here
+        return 0;
+    }
+};`,
+    },
+    hints: [
+      'The aim is to maximize the area formed between the vertical lines.',
+      'Try to use two pointers. Start with the maximum width container and move the shorter line inward.',
+    ],
+    explanation: 'Use two pointers starting at both ends. Move the pointer with the smaller height inward to potentially find a taller line.',
+    rating: 4.7,
+    ratingCount: 14500,
   },
 ];
