@@ -1,17 +1,12 @@
 import { sequelize } from '../config/database.js';
 import { DataTypes } from 'sequelize';
+import bcrypt from 'bcryptjs';
 
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
-  },
-  clerk_id: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    unique: true,
-    field: 'clerk_id'
   },
   email: {
     type: DataTypes.STRING(255),
@@ -25,6 +20,11 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING(100),
     allowNull: false,
     unique: true
+  },
+  password_hash: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    field: 'password_hash'
   },
   role: {
     type: DataTypes.ENUM('learner', 'interviewer', 'admin'),
@@ -67,9 +67,18 @@ const User = sequelize.define('User', {
 });
 
 // Instance methods
+User.prototype.setPassword = async function(password) {
+  const salt = await bcrypt.genSalt(10);
+  this.password_hash = await bcrypt.hash(password, salt);
+};
+
+User.prototype.validatePassword = async function(password) {
+  return bcrypt.compare(password, this.password_hash);
+};
+
 User.prototype.toJSON = function() {
   const values = { ...this.get() };
-  delete values.clerk_id; // Don't expose Clerk ID
+  delete values.password_hash; // Don't expose password hash
   return values;
 };
 

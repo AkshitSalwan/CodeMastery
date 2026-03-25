@@ -1,0 +1,5 @@
+{
+  "problemId": 11,
+  "code": "def check_words(arr):\n    for word in arr:\n        if word == 'jolly':\n            return True\n        if word == 'bunts':\n            return 'biceps'\n    return False\n\nif __name__ == \"__main__\":\n    input_str = input().strip()\n    arr = input_str.split()\n    result = check_words(arr)\n    print(result)",
+  "language": "python"
+}

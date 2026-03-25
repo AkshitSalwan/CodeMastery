@@ -3,19 +3,50 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
-import { ArrowRight, Edit, Trash2 } from 'lucide-react';
+import { CheckCircle2, Edit, Trash2 } from 'lucide-react';
 import { BookmarkButton } from "../components/BookmarkButton";
-import { problems as defaultProblems } from '../data/problems';
 import { useAuth } from '../context/AuthContext';
 
 export function ProblemsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('All');
   const [filterCategory, setFilterCategory] = useState('All');
+  const [apiProblems, setApiProblems] = useState([]);
   const [customQuestions, setCustomQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isProblemSolved } = useAuth();
   const isInterviewer = user?.role === 'interviewer';
+
+  // Fetch problems from API
+  const fetchProblems = async () => {
+    try {
+      console.log('Fetching problems from API...');
+      const response = await fetch('/api/problems', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched problems:', data);
+        setApiProblems(data.problems || []);
+      } else {
+        console.error('Failed to fetch problems from API. Status:', response.status);
+        setApiProblems([]);
+      }
+    } catch (error) {
+      console.error('Error fetching problems:', error);
+      setApiProblems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadCustomQuestions = () => {
     const stored = localStorage.getItem('customQuestions');
@@ -37,12 +68,17 @@ export function ProblemsPage() {
   };
 
   useEffect(() => {
+    fetchProblems();
     loadCustomQuestions();
-    window.addEventListener('focus', loadCustomQuestions);
-    return () => window.removeEventListener('focus', loadCustomQuestions);
+    window.addEventListener('focus', () => {
+      fetchProblems();
+      loadCustomQuestions();
+    });
+    return () => window.removeEventListener('focus', () => {});
   }, []);
 
-  const allProblems = [...defaultProblems, ...customQuestions];
+  // Combine API problems with any custom questions from localStorage
+  const allProblems = [...apiProblems, ...customQuestions];
 
   const difficultyColor = {
     Easy: 'bg-green-500/20 text-green-700 dark:text-green-400',
@@ -52,7 +88,11 @@ export function ProblemsPage() {
 
   const filtered = allProblems.filter(
     (problem) => {
-      const categories = Array.isArray(problem.category) ? problem.category : (problem.category ? [problem.category] : []);
+      // Handle both category (static) and tags (API) fields
+      const categories = problem.category 
+        ? (Array.isArray(problem.category) ? problem.category : [problem.category])
+        : (problem.tags ? (Array.isArray(problem.tags) ? problem.tags : [problem.tags]) : []);
+      
       return (
         ((problem.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
           (problem.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())) &&
@@ -113,37 +153,61 @@ export function ProblemsPage() {
       {/* Problems Grid */}
       <div className="grid gap-4">
         {filtered.map((problem) => (
-          <Card key={problem.id} className="hover:border-accent transition-colors">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-start justify-between gap-2">
-                <Link to={`/problems/${problem.id}`} className="flex-1">
-                  <h3 className="font-semibold text-foreground hover:text-accent transition-colors">
+          <Card
+            key={problem.id}
+            className="rounded-2xl border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-md"
+          >
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <Link to={`/problems/${problem.id}`} className="min-w-0 flex-1 space-y-1">
+                  <h3 className="text-lg font-semibold text-foreground hover:text-accent transition-colors">
                     {problem.title || 'Untitled'}
                   </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                  <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
                     {((problem.description || '').substring(0, 100)) || '—'}...
                   </p>
                 </Link>
                 <BookmarkButton problemId={problem.id} />
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {isProblemSolved(problem.id) ? (
+                  <Badge
+                    variant="secondary"
+                    className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Solved
+                  </Badge>
+                ) : null}
                 <Badge variant="outline" className={difficultyColor[problem.difficulty]}>
                   {problem.difficulty}
                 </Badge>
+                
+                {/* Display companies if available (for static problems) */}
                 {(problem.companies || []).slice(0, 2).map((company) => (
                   <Badge key={company} variant="secondary" className="text-xs">
                     {company}
                   </Badge>
                 ))}
+                
+                {/* Display tags/category if available (for API problems) */}
+                {(problem.tags || problem.category || []).slice(0, 2).map((tag) => {
+                  const tagLabel = typeof tag === 'string' ? tag : tag.name || tag;
+                  return (
+                    <Badge key={tagLabel} variant="secondary" className="text-xs">
+                      {tagLabel}
+                    </Badge>
+                  );
+                })}
               </div>
 
-              <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4 text-sm text-muted-foreground">
                 <span>{problem.acceptanceRate ? `${problem.acceptanceRate.toFixed(1)}%` : '—'} acceptance</span>
                 <div className="flex items-center gap-2">
                   <Link to={`/problems/${problem.id}/editor`}>
                     <Button size="sm" variant="outline">
-                      Solve
+                      {isProblemSolved(problem.id) ? 'Review' : 'Solve'}
                     </Button>
                   </Link>
                   {problem.isCustom && isInterviewer && (
@@ -156,7 +220,6 @@ export function ProblemsPage() {
                       </Button>
                     </>
                   )}
-                  <ArrowRight className="h-4 w-4" />
                 </div>
               </div>
             </CardContent>

@@ -40,8 +40,9 @@ const Problem = sequelize.define('Problem', {
     }
   },
   constraints: {
-    type: DataTypes.TEXT,
-    allowNull: true
+    type: DataTypes.JSON,
+    allowNull: true,
+    comment: 'JSON array of constraints'
   },
   examples: {
     type: DataTypes.JSON,

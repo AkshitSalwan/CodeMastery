@@ -1,9 +1,10 @@
 import { Problem, Submission, Topic } from '../models/index.js';
 import { asyncHandler, NotFoundError, ValidationError } from '../middleware/errorHandler.js';
-import judge0Service from '../services/judge0Service.js';
+import judge0Service from '../services/judgeService.js';
 import geminiService from '../services/geminiService.js';
 import { cacheService } from '../config/redis.js';
 import { Op } from 'sequelize';
+import languageMap from '../utils/languageMap.js';
 
 // Get all problems
 export const getAllProblems = asyncHandler(async (req, res) => {
@@ -24,12 +25,7 @@ export const getAllProblems = asyncHandler(async (req, res) => {
     where: whereClause,
     limit: parseInt(limit),
     offset: (parseInt(page) - 1) * parseInt(limit),
-    order: [['created_at', 'DESC']],
-    include: [{
-      model: Topic,
-      as: 'topic',
-      attributes: ['id', 'name', 'slug']
-    }]
+    order: [['created_at', 'DESC']]
   });
   
   // Get user's submission status for each problem
@@ -62,26 +58,26 @@ export const getAllProblems = asyncHandler(async (req, res) => {
   });
 });
 
-// Get problem by slug
+// Get problem by slug or ID
 export const getProblemBySlug = asyncHandler(async (req, res) => {
   const { slug } = req.params;
   const userId = req.dbUser?.id;
   
+  // Check if slug is a numeric ID
+  const whereClause = /^\d+$/.test(slug) 
+    ? { id: parseInt(slug), status: 'published' }
+    : { slug, status: 'published' };
+  
   const problem = await Problem.findOne({
-    where: { slug, status: 'published' },
-    include: [{
-      model: Topic,
-      as: 'topic',
-      attributes: ['id', 'name', 'slug']
-    }]
+    where: whereClause
   });
   
   if (!problem) {
     throw new NotFoundError('Problem');
   }
   
-  // Increment views
-  await problem.increment('views');
+  // Increment views (commented out - views column not in model yet)
+  // await problem.increment('views');
   
   // Get user's submissions for this problem
   let userSubmissions = [];
@@ -118,6 +114,46 @@ export const createProblem = asyncHandler(async (req, res) => {
     throw new ValidationError('Problem with this slug already exists');
   }
   
+  // Generate test cases using Gemini AI if not provided
+  let finalTestCases = test_cases;
+  let finalHiddenTestCases = hidden_test_cases;
+  let finalHints = hints;
+  
+  if (!test_cases || !hidden_test_cases) {
+    try {
+      console.log(`Generating test cases for "${title}" using Gemini AI...`);
+      const generatedCases = await geminiService.generateTestCases({
+        title,
+        description,
+        difficulty,
+        constraints,
+      });
+      
+      finalTestCases = test_cases || generatedCases.test_cases;
+      finalHiddenTestCases = hidden_test_cases || generatedCases.hidden_test_cases;
+      console.log(`Generated ${finalTestCases.length} visible and ${finalHiddenTestCases.length} hidden test cases`);
+    } catch (error) {
+      console.error('Error generating test cases with Gemini:', error.message);
+      // Continue with provided test cases or empty array
+    }
+  }
+  
+  // Generate hints using Gemini AI if not provided
+  if (!hints) {
+    try {
+      console.log(`Generating hints for "${title}" using Gemini AI...`);
+      finalHints = await geminiService.generateHints({
+        title,
+        description,
+        difficulty,
+      });
+      console.log(`Generated ${finalHints?.length || 0} hints`);
+    } catch (error) {
+      console.error('Error generating hints with Gemini:', error.message);
+      // Continue without hints
+    }
+  }
+  
   const problem = await Problem.create({
     title,
     slug,
@@ -127,13 +163,13 @@ export const createProblem = asyncHandler(async (req, res) => {
     topic_id,
     constraints,
     examples,
-    test_cases,
-    hidden_test_cases,
+    test_cases: finalTestCases || [],
+    hidden_test_cases: finalHiddenTestCases || [],
     starter_code,
     time_limit: time_limit || 2000,
     memory_limit: memory_limit || 256,
     points: points || 100,
-    hints,
+    hints: finalHints || [],
     solution,
     created_by: userId,
     status: 'published'
@@ -141,7 +177,9 @@ export const createProblem = asyncHandler(async (req, res) => {
   
   res.status(201).json({
     message: 'Problem created successfully',
-    problem
+    problem,
+    testCasesGenerated: !test_cases,
+    hintsGenerated: !hints,
   });
 });
 
@@ -187,9 +225,9 @@ export const submitSolution = asyncHandler(async (req, res) => {
     throw new NotFoundError('Problem');
   }
   
-  const languageId = judge0Service.getLanguageId(language);
+  const languageId = languageMap[language];
   if (!languageId) {
-    throw new ValidationError('Unsupported language');
+    throw new ValidationError(`Unsupported language: ${language}`);
   }
   
   // Create submission record
@@ -215,33 +253,45 @@ export const submitSolution = asyncHandler(async (req, res) => {
   let totalMemory = 0;
   
   for (const testCase of allTestCases) {
-    const result = await judge0Service.executeCode(code, language, testCase.input);
-    
-    const passed = result.stdout?.trim() === testCase.output?.trim();
-    if (passed) passedCount++;
-    
-    results.push({
-      input: testCase.input,
-      expectedOutput: testCase.output,
-      actualOutput: result.stdout || '',
-      passed,
-      runtime: result.time,
-      memory: result.memory,
-      error: result.stderr || result.compile_output || result.error
-    });
-    
-    if (result.time) totalRuntime = Math.max(totalRuntime, result.time);
-    if (result.memory) totalMemory = Math.max(totalMemory, result.memory);
-    
-    // Stop on first error for compilation errors
-    if (result.statusId === 6) { // Compilation error
-      break;
+    try {
+      const result = await judge0Service.runJudge(language, code, testCase.input || '');
+      
+      const passed = result.stdout?.trim() === testCase.output?.trim();
+      if (passed) passedCount++;
+      
+      results.push({
+        input: testCase.input,
+        expectedOutput: testCase.output,
+        actualOutput: result.stdout || '',
+        passed,
+        runtime: result.time,
+        memory: result.memory,
+        error: result.stderr || result.compile_output || result.message
+      });
+      
+      if (result.time) totalRuntime = Math.max(totalRuntime, parseFloat(result.time) || 0);
+      if (result.memory) totalMemory = Math.max(totalMemory, parseFloat(result.memory) || 0);
+      
+      // Stop on first error for compilation errors
+      if (result.status?.id === 6) { // Compilation error
+        break;
+      }
+    } catch (testError) {
+      results.push({
+        input: testCase.input,
+        expectedOutput: testCase.output,
+        actualOutput: null,
+        passed: false,
+        error: testError.message
+      });
     }
   }
   
   // Determine verdict
   let verdict;
-  if (passedCount === allTestCases.length) {
+  if (passedCount === 0 && results.some(r => r.error?.includes('Compilation'))) {
+    verdict = 'compilation_error';
+  } else if (passedCount === allTestCases.length) {
     verdict = 'accepted';
   } else if (results.some(r => r.error?.includes('Time Limit'))) {
     verdict = 'time_limit_exceeded';
@@ -249,8 +299,6 @@ export const submitSolution = asyncHandler(async (req, res) => {
     verdict = 'memory_limit_exceeded';
   } else if (results.some(r => r.error?.includes('Runtime'))) {
     verdict = 'runtime_error';
-  } else if (results[0]?.error?.includes('Compilation')) {
-    verdict = 'compilation_error';
   } else {
     verdict = 'wrong_answer';
   }
@@ -306,11 +354,14 @@ export const runCode = asyncHandler(async (req, res) => {
   for (const testCase of testCases || []) {
     const result = await judge0Service.executeCode(code, language, testCase.input);
     
+    // Use 'expected' field (from frontend) or fall back to 'output' (for backwards compatibility)
+    const expectedOutput = testCase.expected ?? testCase.output ?? '';
+    const actualOutput = (result.stdout || '').trim();
+    
     results.push({
       input: testCase.input,
-      expectedOutput: testCase.output,
-      actualOutput: result.stdout || '',
-      passed: result.stdout?.trim() === testCase.output?.trim(),
+      actualOutput: actualOutput,
+      passed: actualOutput === expectedOutput.trim(),
       runtime: result.time,
       memory: result.memory,
       error: result.stderr || result.compile_output || result.error
@@ -325,13 +376,8 @@ export const getSubmission = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.dbUser.id;
   
-  const submission = await Submission.findByPk(id, {
-    include: [{
-      model: Problem,
-      as: 'problem',
-      attributes: ['id', 'title', 'slug']
-    }]
-  });
+  const submission = await Submission.findByPk(id);
+  // Removed include clause - association not properly configured
   
   if (!submission) {
     throw new NotFoundError('Submission');
@@ -358,12 +404,8 @@ export const getUserSubmissions = asyncHandler(async (req, res) => {
     where: whereClause,
     limit: parseInt(limit),
     offset: (parseInt(page) - 1) * parseInt(limit),
-    order: [['submitted_at', 'DESC']],
-    include: [{
-      model: Problem,
-      as: 'problem',
-      attributes: ['id', 'title', 'slug', 'difficulty']
-    }]
+    order: [['submitted_at', 'DESC']]
+    // Removed include clause - association not properly configured
   });
   
   res.json({

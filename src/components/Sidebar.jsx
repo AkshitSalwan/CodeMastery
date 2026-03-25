@@ -17,6 +17,7 @@ import {
   ClipboardList,
   GraduationCap,
   Home,
+  Briefcase,
 } from 'lucide-react';
 
 const publicNavItems = [
@@ -41,6 +42,7 @@ const userChallengeItems = [
 
 const interviewerNavItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Interviewer Panel', href: '/interviewer', icon: Briefcase },
   { label: 'Make a Test', href: '/make-test', icon: ClipboardList },
   { label: 'Contests', href: '/contests', icon: Target },
   { label: 'Leaderboard', href: '/leaderboard', icon: BarChart3 },
@@ -52,7 +54,7 @@ const adminItems = [
 
 const interviewerAdminItems = [
   { label: 'Add Question', href: '/questions/add', icon: Plus },
-  { label: 'Admin Panel', href: '/admin', icon: BarChart3 },
+  { label: 'Interviewer Panel', href: '/interviewer', icon: Briefcase },
 ];
 
 export function Sidebar() {

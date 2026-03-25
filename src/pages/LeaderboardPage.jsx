@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useUser } from '@clerk/react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { LEADERBOARD_DATA } from '../data/leaderboard';
 
 export function LeaderboardPage() {
   const [sortBy, setSortBy] = useState('points'); // points, solved, streak
-  const { user: clerkUser } = useUser();
   const { profile } = useAuth();
   const [timeframe, setTimeframe] = useState('all'); // all, week, month
 
   const currentUserData = {
-    name: clerkUser?.fullName || clerkUser?.firstName || clerkUser?.username || 'User',
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${clerkUser?.fullName || clerkUser?.firstName || 'User'}`,
+    name: profile?.name || 'User',
+    avatar: profile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.name || 'User'}`,
     points: profile?.totalPoints || 0,
     problemsSolved: profile?.problemsSolved || 0,
     streak: profile?.streak || 0,
@@ -22,7 +20,7 @@ export function LeaderboardPage() {
   const leaderboardWithUser = [
     ...LEADERBOARD_DATA.filter(u => u.id !== 'user-1'), // Remove placeholder user
     {
-      id: clerkUser?.id || 'current-user',
+      id: profile?.id || 'current-user',
       name: currentUserData.name,
       avatar: currentUserData.avatar,
       points: currentUserData.points,

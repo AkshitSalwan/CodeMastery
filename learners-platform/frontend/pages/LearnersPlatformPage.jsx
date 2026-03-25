@@ -136,7 +136,7 @@ const LearnersPlatformPage = ({ apiBaseUrl = '/api/learners-platform' }) => {
 
   return (
     <div className="space-y-8">
-      <section className="overflow-hidden rounded-[2rem] border border-border/70 bg-gradient-to-br from-accent/10 via-background to-secondary/70 shadow-sm">
+      <section className="overflow-hidden rounded-4xl border border-border/70 bg-linear-to-br from-accent/10 via-background to-secondary/70 shadow-sm">
         <div className="grid gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[1.3fr_0.9fr] lg:px-10 lg:py-10">
           <div className="space-y-6">
             <Badge className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">

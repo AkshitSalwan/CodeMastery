@@ -1,52 +1,180 @@
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
-import { Link } from 'react-router-dom';
-import { Flame, Trophy, Zap, Code2, Briefcase, FileText, Calendar, Users, Clock, CheckCircle2, GraduationCap } from 'lucide-react';
+import {
+  Flame,
+  Trophy,
+  Code2,
+  Briefcase,
+  FileText,
+  Calendar,
+  Users,
+  Clock,
+  CheckCircle2,
+  GraduationCap,
+  BrainCircuit,
+  Target,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { isInterviewerRole } from '../utils/roles';
 
+const startOfDay = (value) => {
+  const next = new Date(value);
+  next.setHours(0, 0, 0, 0);
+  return next;
+};
+
+const buildSolvedProblems = (user) =>
+  Object.values(user?.learningProgress?.solvedProblems || {}).sort(
+    (left, right) => new Date(right.lastSolvedAt || right.solvedAt || 0).getTime() - new Date(left.lastSolvedAt || left.solvedAt || 0).getTime()
+  );
+
+const getCurrentStreak = (solvedProblems) => {
+  if (!solvedProblems.length) {
+    return 0;
+  }
+
+  const uniqueDays = [...new Set(solvedProblems.map((entry) => startOfDay(entry.lastSolvedAt || entry.solvedAt).toISOString()))]
+    .map((value) => new Date(value).getTime())
+    .sort((left, right) => right - left);
+
+  const today = startOfDay(new Date()).getTime();
+  const yesterday = today - 24 * 60 * 60 * 1000;
+
+  if (uniqueDays[0] !== today && uniqueDays[0] !== yesterday) {
+    return 0;
+  }
+
+  let streak = 1;
+  for (let index = 1; index < uniqueDays.length; index += 1) {
+    if (uniqueDays[index - 1] - uniqueDays[index] === 24 * 60 * 60 * 1000) {
+      streak += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return streak;
+};
+
+const buildWeeklyProgress = (solvedProblems) => {
+  const days = [];
+  for (let index = 6; index >= 0; index -= 1) {
+    const current = startOfDay(new Date());
+    current.setDate(current.getDate() - index);
+    days.push({
+      key: current.toISOString().slice(0, 10),
+      day: current.toLocaleDateString(undefined, { weekday: 'short' }),
+      solved: 0,
+    });
+  }
+
+  const counters = new Map(days.map((entry) => [entry.key, entry]));
+  solvedProblems.forEach((entry) => {
+    const key = startOfDay(entry.lastSolvedAt || entry.solvedAt).toISOString().slice(0, 10);
+    if (counters.has(key)) {
+      counters.get(key).solved += 1;
+    }
+  });
+
+  return days;
+};
+
+const buildLearnerActivities = (user, solvedProblems) => {
+  const assessments = Object.entries(user?.learningProgress?.assessmentHistory || {}).flatMap(
+    ([topicSlug, items]) =>
+      (items || []).map((item, index) => ({
+        id: `${topicSlug}-${item.completedAt || index}`,
+        type: 'assessment',
+        title: `Finished reassessment for ${topicSlug.replace(/-/g, ' ')}`,
+        description: `${item.questionIds?.length || 0} review questions completed`,
+        timestamp: item.completedAt,
+      }))
+  );
+
+  const solved = solvedProblems.map((entry) => ({
+    id: `solved-${entry.id}-${entry.lastSolvedAt || entry.solvedAt}`,
+    type: 'problem',
+    title: `Solved ${entry.title}`,
+    description: `${entry.difficulty} problem${entry.categories?.length ? ` in ${entry.categories.join(', ')}` : ''}`,
+    timestamp: entry.lastSolvedAt || entry.solvedAt,
+  }));
+
+  return [...solved, ...assessments]
+    .filter((entry) => entry.timestamp)
+    .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime())
+    .slice(0, 5);
+};
+
+const readJson = (storageKey, fallback) => {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export function DashboardPage() {
   const { user } = useAuth();
-  const [recentActivities, setRecentActivities] = useState([]);
   const isInterviewer = isInterviewerRole(user?.role);
 
-  useEffect(() => {
-    const activities = JSON.parse(localStorage.getItem('recentActivities') || '[]');
-    setRecentActivities(activities.slice(0, 5));
-  }, []);
+  const solvedProblems = useMemo(() => buildSolvedProblems(user), [user]);
+  const dueReviews = useMemo(
+    () =>
+      solvedProblems.filter(
+        (entry) => entry.nextReviewAt && new Date(entry.nextReviewAt).getTime() <= Date.now()
+      ),
+    [solvedProblems]
+  );
+  const assessmentsCompleted = useMemo(
+    () =>
+      Object.values(user?.learningProgress?.assessmentHistory || {}).reduce(
+        (sum, entries) => sum + (entries?.length || 0),
+        0
+      ),
+    [user]
+  );
+  const weeklyProgress = useMemo(() => buildWeeklyProgress(solvedProblems), [solvedProblems]);
+  const learnerActivities = useMemo(() => buildLearnerActivities(user, solvedProblems), [solvedProblems, user]);
 
-  const userStats = [
-    { label: 'Problems Solved', value: '24', icon: Code2, color: 'text-blue-500' },
-    { label: 'Current Streak', value: '7', icon: Flame, color: 'text-orange-500' },
-    { label: 'Level', value: '12', icon: Zap, color: 'text-yellow-500' },
-    { label: 'Achievements', value: '8', icon: Trophy, color: 'text-purple-500' },
+  const customQuestions = useMemo(() => readJson('customQuestions', []), []);
+  const builtTests = useMemo(() => readJson('testBuilderTests', []), []);
+  const contestActivity = user?.adminSettings?.contestActivity || [];
+  const interviewerActivities = contestActivity
+    .map((entry) => ({
+      id: entry.id,
+      type: entry.type,
+      title: entry.title || `Activity: ${entry.type}`,
+      description: entry.description || `${entry.type} recorded in admin metrics`,
+      timestamp: entry.createdAt,
+    }))
+    .sort((left, right) => new Date(right.timestamp || 0).getTime() - new Date(left.timestamp || 0).getTime())
+    .slice(0, 5);
+
+  const learnerStats = [
+    { label: 'Problems Solved', value: solvedProblems.length, icon: Code2, color: 'text-blue-500' },
+    { label: 'Current Streak', value: getCurrentStreak(solvedProblems), icon: Flame, color: 'text-orange-500' },
+    { label: 'Reviews Due', value: dueReviews.length, icon: BrainCircuit, color: 'text-emerald-500' },
+    { label: 'Assessments', value: assessmentsCompleted, icon: Trophy, color: 'text-purple-500' },
   ];
 
   const interviewerStats = [
-    { label: 'Tests Conducted', value: '42', icon: Briefcase, color: 'text-blue-500' },
-    { label: 'Questions Created', value: '128', icon: FileText, color: 'text-green-500' },
-    { label: 'Contests', value: '7', icon: Calendar, color: 'text-orange-500' },
-    { label: 'Interviews', value: '19', icon: Users, color: 'text-purple-500' },
+    { label: 'Tests Created', value: builtTests.length, icon: Briefcase, color: 'text-blue-500' },
+    { label: 'Questions Added', value: customQuestions.length, icon: FileText, color: 'text-green-500' },
+    { label: 'Contests Logged', value: user?.adminSettings?.metrics?.contestsCreated || 0, icon: Calendar, color: 'text-orange-500' },
+    { label: 'Testcases Designed', value: user?.adminSettings?.metrics?.testcasesDesigned || 0, icon: Target, color: 'text-purple-500' },
   ];
 
-  const stats = isInterviewer ? interviewerStats : userStats;
-
-  // Sample progress data
-  const progressData = [
-    { day: 'Mon', solved: 2 },
-    { day: 'Tue', solved: 3 },
-    { day: 'Wed', solved: 1 },
-    { day: 'Thu', solved: 4 },
-    { day: 'Fri', solved: 2 },
-    { day: 'Sat', solved: 5 },
-    { day: 'Sun', solved: 3 },
-  ];
+  const stats = isInterviewer ? interviewerStats : learnerStats;
+  const activities = isInterviewer ? interviewerActivities : learnerActivities;
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-8"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -58,17 +186,16 @@ export function DashboardPage() {
         transition={{ duration: 0.5, delay: 0.1 }}
       >
         <h1 className="text-4xl font-bold text-foreground mb-2">
-          {isInterviewer ? 'Welcome Back, Interviewer!' : 'Welcome Back!'}
+          {isInterviewer ? `Welcome back, ${user?.name || 'Interviewer'}` : `Welcome back, ${user?.name || 'Learner'}`}
         </h1>
         <p className="text-muted-foreground">
-          {isInterviewer 
-            ? 'Manage interviews and track candidate performance' 
-            : 'Continue your learning journey with DSA'}
+          {isInterviewer
+            ? 'Track interviewer activity, contest creation, and question setup from one place.'
+            : 'Pick up where you left off and keep your problem-solving momentum going.'}
         </p>
       </motion.div>
 
-      {/* Stats Grid */}
-      <motion.div 
+      <motion.div
         className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -82,12 +209,11 @@ export function DashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 * index }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.03 }}
             >
-              <Card className="hover:shadow-lg transition-shadow duration-300">
+              <Card className="rounded-2xl hover:shadow-lg transition-shadow duration-300">
                 <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">{stat.label}</p>
                       <p className="text-3xl font-bold text-foreground mt-2">{stat.value}</p>
@@ -101,34 +227,32 @@ export function DashboardPage() {
         })}
       </motion.div>
 
-      {/* Progress Chart */}
-      {!isInterviewer && (
+      {!isInterviewer ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>Weekly Progress</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={progressData}>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={weeklyProgress}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="day" />
-                  <YAxis />
+                  <YAxis allowDecimals={false} />
                   <Tooltip />
-                  <Bar dataKey="solved" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="solved" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </motion.div>
-      )}
+      ) : null}
 
-      {/* Quick Actions */}
-      <motion.div 
+      <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -139,161 +263,98 @@ export function DashboardPage() {
           <div className={`grid gap-4 ${isInterviewer ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
             {isInterviewer ? (
               <>
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link to="/add-question">
-                    <Button className="w-full">
-                      <FileText className="h-4 w-4 mr-2" />
-                      New Problem
-                    </Button>
-                  </Link>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link to="/contests">
-                    <Button variant="outline" className="w-full">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Manage Contests
-                    </Button>
-                  </Link>
-                </motion.div>
+                <Link to="/questions/add">
+                  <Button className="w-full">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Add Question
+                  </Button>
+                </Link>
+                <Link to="/interviewer">
+                  <Button variant="outline" className="w-full">
+                    <Users className="h-4 w-4 mr-2" />
+                    Open Interviewer Panel
+                  </Button>
+                </Link>
               </>
             ) : (
               <>
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link to="/problems">
-                    <Button className="w-full">
-                      <Code2 className="h-4 w-4 mr-2" />
-                      Solve Problems
-                    </Button>
-                  </Link>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link to="/daily-challenges">
-                    <Button variant="outline" className="w-full">
-                      <Flame className="h-4 w-4 mr-2" />
-                      Daily Challenge
-                    </Button>
-                  </Link>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link to="/learners-platform">
-                    <Button variant="outline" className="w-full">
-                      <GraduationCap className="h-4 w-4 mr-2" />
-                      Learning Hub
-                    </Button>
-                  </Link>
-                </motion.div>
+                <Link to="/problems">
+                  <Button className="w-full">
+                    <Code2 className="h-4 w-4 mr-2" />
+                    Solve Problems
+                  </Button>
+                </Link>
+                <Link to="/daily-challenges">
+                  <Button variant="outline" className="w-full">
+                    <Flame className="h-4 w-4 mr-2" />
+                    Daily Challenge
+                  </Button>
+                </Link>
+                <Link to="/learners-platform">
+                  <Button variant="outline" className="w-full">
+                    <GraduationCap className="h-4 w-4 mr-2" />
+                    Learning Hub
+                  </Button>
+                </Link>
               </>
             )}
           </div>
         </div>
       </motion.div>
 
-      {/* Recent Activity */}
-      <motion.div 
+      <motion.div
         className="space-y-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.6 }}
       >
         <h2 className="text-2xl font-bold text-foreground">
-          {isInterviewer ? 'Recent Tests & Candidates' : 'Recent Activity'}
+          {isInterviewer ? 'Recent Management Activity' : 'Recent Activity'}
         </h2>
-        <Card>
+        <Card className="rounded-2xl">
           <CardContent className="pt-6">
-            {isInterviewer && recentActivities.length > 0 ? (
+            {activities.length > 0 ? (
               <div className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <motion.div 
-                    key={activity.id} 
+                {activities.map((activity, index) => (
+                  <motion.div
+                    key={activity.id}
                     className="flex items-start gap-4 pb-4 border-b border-border last:pb-0 last:border-b-0"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 * index }}
                   >
                     <div className="mt-1 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                      {activity.type === 'test_created' ? (
+                      {activity.type === 'problem' || activity.type === 'questionsAdded' ? (
                         <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       ) : (
                         <Clock className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground truncate">{activity.title}</p>
+                      <p className="font-semibold text-foreground">{activity.title}</p>
                       <p className="text-sm text-muted-foreground mt-1">{activity.description}</p>
                       <p className="text-xs text-muted-foreground mt-2">
-                        {new Date(activity.timestamp).toLocaleDateString()} at {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {activity.timestamp ? new Date(activity.timestamp).toLocaleString() : 'No timestamp'}
                       </p>
                     </div>
                   </motion.div>
                 ))}
               </div>
             ) : (
-              <motion.p 
+              <motion.p
                 className="text-muted-foreground text-center py-8"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.8 }}
               >
-                {isInterviewer 
-                  ? 'No recent activity. Create a test to get started!' 
-                  : 'No recent activity. Start solving problems!'}
+                {isInterviewer
+                  ? 'No interviewer activity has been recorded yet.'
+                  : 'No recent learner activity yet. Solve your first problem to start building momentum.'}
               </motion.p>
             )}
           </CardContent>
         </Card>
       </motion.div>
-
-      {/* Additional Interviewer Resources */}
-      {isInterviewer && (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-foreground">Interviewer Resources</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-green-500" />
-                  Create Test
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">Build custom coding tests for candidates</p>
-                <Link to="/make-test">
-                  <Button size="sm" variant="outline" className="w-full">Get Started</Button>
-                </Link>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-orange-500" />
-                  Leaderboard
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">Monitor interview performance metrics</p>
-                <Link to="/leaderboard">
-                  <Button size="sm" variant="outline" className="w-full">View Metrics</Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
     </motion.div>
   );
 }

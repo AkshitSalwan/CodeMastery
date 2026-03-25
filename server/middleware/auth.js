@@ -1,76 +1,122 @@
-import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
+import jwt from 'jsonwebtoken';
 import { User } from '../models/index.js';
 
-// Clerk authentication middleware
-export const requireAuth = ClerkExpressRequireAuth({
-  secretKey: process.env.CLERK_SECRET_KEY
-});
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 
-// Get or create user from Clerk
-export const getOrCreateUser = async (req, res, next) => {
+// Verify JWT token
+const verifyToken = (token) => {
   try {
-    if (!req.auth || !req.auth.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    return null;
+  }
+};
+
+// Generate JWT token
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+};
+
+// Required authentication middleware
+const requireAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
     }
 
-    const clerkUserId = req.auth.userId;
-    
-    // Find user by Clerk ID
-    let user = await User.findOne({ where: { clerk_id: clerkUserId } });
-    
-    if (!user) {
-      // Get user data from Clerk
-      const clerkUser = await fetch(`https://api.clerk.com/v1/users/${clerkUserId}`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.CLERK_SECRET_KEY}`
-        }
-      });
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
 
-      if (!clerkUser.ok) {
-        return res.status(500).json({ error: 'Failed to fetch user from Clerk' });
-      }
-
-      const userData = await clerkUser.json();
-      const email = userData.email_addresses?.[0]?.email_address || '';
-      const username = userData.username || email.split('@')[0];
-      
-      // Create new user
-      user = await User.create({
-        clerk_id: clerkUserId,
-        email: email,
-        username: username,
-        avatar: userData.image_url,
-        role: 'learner',
-        last_login: new Date()
-      });
-    } else {
-      // Update last login
-      await user.update({ last_login: new Date() });
+    if (!decoded) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    req.dbUser = user;
+    req.userId = decoded.userId;
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    return res.status(500).json({ error: 'Authentication error' });
+    return res.status(401).json({ error: 'Authentication failed' });
   }
 };
 
-// Optional auth - doesn't require authentication but populates user if available
-export const optionalAuth = async (req, res, next) => {
+// Get or create user (load user data)
+const getOrCreateUser = async (req, res, next) => {
   try {
-    if (req.auth && req.auth.userId) {
-      const user = await User.findOne({ where: { clerk_id: req.auth.userId } });
-      req.dbUser = user;
+    if (!req.userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const user = await User.findByPk(req.userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update last login
+    await user.update({ last_login: new Date() });
+    req.dbUser = user;
+    next();
+  } catch (error) {
+    console.error('Get user error:', error);
+    return res.status(500).json({ error: 'Failed to load user' });
+  }
+};
+
+// Optional auth - doesn't require authentication
+const optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      
+      if (decoded) {
+        const user = await User.findByPk(decoded.userId);
+        if (user) {
+          req.userId = decoded.userId;
+          req.dbUser = user;
+        }
+      }
     }
     next();
   } catch (error) {
-    next();
+    next(); // Continue even if auth fails for optional routes
   }
 };
 
-export default {
+// Admin only middleware
+const adminOnly = async (req, res, next) => {
+  try {
+    if (!req.dbUser || req.dbUser.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+};
+
+// Interviewer or Admin middleware
+const interviewerOrAdmin = async (req, res, next) => {
+  try {
+    if (!req.dbUser || (req.dbUser.role !== 'admin' && req.dbUser.role !== 'interviewer')) {
+      return res.status(403).json({ error: 'Interviewer or admin access required' });
+    }
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+};
+
+export {
+  verifyToken,
+  generateToken,
   requireAuth,
   getOrCreateUser,
-  optionalAuth
+  optionalAuth,
+  adminOnly,
+  interviewerOrAdmin
 };

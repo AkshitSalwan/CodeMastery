@@ -1,7 +1,10 @@
-const { learningTopics, learnersPlatformMeta } = require('../data/topics');
-const { searchTopicVideos } = require('../services/learnersPlatformYoutubeService');
-const { getRedisCacheStatus } = require('../../../server/utils/redisCache');
-const { generateTopicAssessment } = require('../services/learnersPlatformAssessmentService');
+import { learningTopics, learnersPlatformMeta } from '../data/topics.js';
+import { searchTopicVideos } from '../services/learnersPlatformYoutubeService.js';
+import { getRedisCacheStatus } from '../../../server/utils/redisCache.js';
+import {
+  generateAssessmentFeedback,
+  generateTopicAssessment,
+} from '../services/learnersPlatformAssessmentService.js';
 
 const filterTopics = (topics, query) => {
   const search = String(query.search || '').trim().toLowerCase();
@@ -120,7 +123,8 @@ const getTopicAssessment = async (req, res) => {
       cached: Boolean(assessment.cached),
       dueProblemCount: assessment.dueProblemCount,
       focusAreas: assessment.focusAreas || [],
-      questions: assessment.questions || [],
+      mcqs: assessment.mcqs || [],
+      interviewQuestions: assessment.interviewQuestions || [],
       basedOnSolvedProblems: assessment.basedOnSolvedProblems || [],
     },
     cache: {
@@ -131,11 +135,36 @@ const getTopicAssessment = async (req, res) => {
   });
 };
 
-module.exports = {
+const getTopicAssessmentFeedback = async (req, res) => {
+  const topic = learningTopics.find((entry) => entry.slug === req.params.slug);
+
+  if (!topic) {
+    return res.status(404).json({
+      message: 'Learning topic not found'
+    });
+  }
+
+  const assessment = req.body?.assessment || {};
+  const responses = req.body?.responses || {};
+  const feedback = await generateAssessmentFeedback({ topic, assessment, responses });
+
+  return res.json({
+    topic: {
+      slug: topic.slug,
+      title: topic.title,
+      level: topic.level,
+      category: topic.category,
+    },
+    feedback,
+  });
+};
+
+export {
   getMeta,
   getTopics,
   getFeaturedTopics,
   getTopicBySlug,
   getTopicAssessment,
+  getTopicAssessmentFeedback,
   getTopicVideos,
 };

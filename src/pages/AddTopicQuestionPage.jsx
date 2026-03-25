@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
+import { useAuth } from '../context/AuthContext';
 
 const difficulties = ['Easy', 'Medium', 'Hard'];
 const topics = [
@@ -18,6 +19,7 @@ const topics = [
 ];
 
 export default function AddTopicQuestionPage({ onAddQuestion }) {
+  const { bumpAdminMetric } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [difficulty, setDifficulty] = useState('Medium');
@@ -53,6 +55,7 @@ export default function AddTopicQuestionPage({ onAddQuestion }) {
       isCustom: true,
     };
     if (onAddQuestion) onAddQuestion(newQuestion);
+    bumpAdminMetric('questionsAdded', 1, { title: newQuestion.title });
     setTitle('');
     setDescription('');
     setDifficulty('Medium');
