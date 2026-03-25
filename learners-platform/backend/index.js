@@ -1,4 +1,3 @@
-const learnersPlatformRouter = require('./routes/learnersPlatformRoutes');
+import learnersPlatformRouter from './routes/learnersPlatformRoutes.js';
 
-module.exports = learnersPlatformRouter;
-module.exports.learnersPlatformRouter = learnersPlatformRouter;
+export default learnersPlatformRouter;

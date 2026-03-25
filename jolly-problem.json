@@ -1,0 +1,27 @@
+{
+  "title": "Search Jolly",
+  "slug": "search-jolly",
+  "description": "Find if jolly or bunts exists in the array. Return true for jolly, biceps for bunts, false otherwise.",
+  "difficulty": "easy",
+  "tags": ["Array", "String", "Search"],
+  "constraints": "[\"1 <= arr.length <= 100\", \"Each string contains only lowercase letters\"]",
+  "examples": "[{\"input\": \"jolly happy\", \"output\": \"true\"}, {\"input\": \"bunts wild\", \"output\": \"biceps\"}, {\"input\": \"happy sad\", \"output\": \"false\"}]",
+  "test_cases": [
+    {"input": "jolly", "output": "true"},
+    {"input": "hello jolly world", "output": "true"},
+    {"input": "bunts", "output": "biceps"},
+    {"input": "nothing here", "output": "false"}
+  ],
+  "hidden_test_cases": [
+    {"input": "jolly jolly jolly", "output": "true"},
+    {"input": "bunts bunts", "output": "biceps"},
+    {"input": "joll bunt", "output": "false"},
+    {"input": "happy sad jolly", "output": "true"},
+    {"input": "test bunts case", "output": "biceps"}
+  ],
+  "hints": "[\"Use a for loop\", \"Compare strings\", \"Return true for jolly\", \"Return biceps for bunts\", \"Check priority\"]",
+  "starter_code": "{\"java\": \"import java.util.*;\\\\n\\\\npublic class Main {\\\\n    public static Object checkWords(String[] arr) {\\\\n        // Write your code here\\\\n        return false;\\\\n    }\\\\n\\\\n    public static void main(String[] args) {\\\\n        Scanner sc = new Scanner(System.in);\\\\n        String input = sc.nextLine().trim();\\\\n        String[] arr = input.split(\\\\\\\" \\\\\\\");\\\\n        Object result = checkWords(arr);\\\\n        System.out.println(result);\\\\n    }\\\\n}\", \"python\": \"def check_words(arr):\\\\n    # Write your code here\\\\n    return False\\\\n\\\\nif __name__ == '__main__':\\\\n    input_str = input().strip()\\\\n    arr = input_str.split()\\\\n    result = check_words(arr)\\\\n    print(result)\", \"javascript\": \"function checkWords(arr) {\\\\n    // Write your code here\\\\n    return false;\\\\n}\\\\n\\\\nconst readline = require('readline');\\\\nconst rl = readline.createInterface({\\\\n    input: process.stdin,\\\\n    output: process.stdout,\\\\n    terminal: false\\\\n});\\\\n\\\\nlet input = '';\\\\nrl.on('line', (line) => {\\\\n    input = line.trim();\\\\n    const arr = input.split(' ');\\\\n    const result = checkWords(arr);\\\\n    console.log(result);\\\\n    rl.close();\\\\n});\"}",
+  "time_limit": 1000,
+  "memory_limit": 256,
+  "points": 50
+}

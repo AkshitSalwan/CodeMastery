@@ -1,4 +1,4 @@
-module.exports = function compareOutput(actual, expected) {
+export default function compareOutput(actual, expected) {
   if (actual == null || expected == null) return false;
 
   // Normalize whitespace

@@ -1,6 +1,5 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthenticateWithRedirectCallback } from "@clerk/react";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { hasAllowedRole } from "./utils/roles";
@@ -35,6 +34,8 @@ const lazyNamed = (importer, exportName) =>
 
 const CodeEditorPage = lazyNamed(() => import("./pages/CodeEditorPage"), "CodeEditorPage");
 const AdminPage = lazyNamed(() => import("./pages/AdminPage"), "AdminPage");
+const AdminAddQuestionPage = lazy(() => import("./pages/AdminAddQuestionPage"));
+const InterviewerPanelPage = lazyNamed(() => import("./pages/InterviewerPanelPage"), "InterviewerPanelPage");
 const LeaderboardPage = lazyNamed(() => import("./pages/LeaderboardPage"), "LeaderboardPage");
 const ContestsPage = lazyNamed(() => import("./pages/ContestsPage"), "ContestsPage");
 const TestBuilderPage = lazyNamed(() => import("./pages/TestBuilderPage"), "TestBuilderPage");
@@ -163,10 +164,6 @@ function AppContent() {
           <Route path="/login" element={<Navigate to="/sign-in" replace />} />
           <Route path="/signup" element={<Navigate to="/sign-up" replace />} />
           <Route
-            path="/sso-callback"
-            element={<AuthenticateWithRedirectCallback redirectUrl="/dashboard" />}
-          />
-          <Route
             path="/problems"
             element={
               <AppLayout>
@@ -192,10 +189,6 @@ function AppContent() {
         <Route path="/sign-in" element={<Navigate to="/dashboard" replace />} />
         <Route path="/sign-up" element={<Navigate to="/dashboard" replace />} />
         <Route path="/home" element={<HomePage />} />
-        <Route
-          path="/sso-callback"
-          element={<AuthenticateWithRedirectCallback redirectUrl="/" />}
-        />
 
         <Route
           path="/*"
@@ -244,8 +237,24 @@ function AppContent() {
                     <Route
                       path="/admin"
                       element={
-                        <RoleRoute allowedRoles={["interviewer", "admin"]}>
+                        <RoleRoute allowedRoles={["admin"]}>
                           <AdminPage />
+                        </RoleRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/questions/add"
+                      element={
+                        <RoleRoute allowedRoles={["admin"]}>
+                          <AdminAddQuestionPage />
+                        </RoleRoute>
+                      }
+                    />
+                    <Route
+                      path="/interviewer"
+                      element={
+                        <RoleRoute allowedRoles={["interviewer", "admin"]}>
+                          <InterviewerPanelPage />
                         </RoleRoute>
                       }
                     />

@@ -1,206 +1,289 @@
-import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { TrendingUp, Users, Code2, MessageSquare, FileText, Target, Calendar, Briefcase, Plus } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  BarChart,
+  Bar,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { ShieldCheck, UserPlus, Users, Target, FileCode2, UserCog, Clock3 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
+import { Button } from '../components/Button';
+import { Badge } from '../components/Badge';
+import { useAuth } from '../context/AuthContext';
+import { getAdminAllowlist } from '../utils/roles';
 
 export function AdminPage() {
-  const { user } = useAuth();
-  const isInterviewer = user?.role === 'interviewer';
+  const { user, assignManagedUserRole, registeredUsers } = useAuth();
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('interviewer');
+  const [apiProblems, setApiProblems] = useState([]);
+  const [loadingProblems, setLoadingProblems] = useState(true);
 
-  // Platform-wide KPIs
-  const platformKPIData = [
-    { label: 'Total Users', value: '2,543', change: '+12%', icon: Users, color: 'text-blue-500' },
-    { label: 'Total Problems', value: '847', change: '+8%', icon: Code2, color: 'text-green-500' },
-    { label: 'Submissions', value: '156K', change: '+23%', icon: TrendingUp, color: 'text-purple-500' },
-    { label: 'Feedback', value: '342', change: '+5%', icon: MessageSquare, color: 'text-orange-500' },
+  const adminAllowlist = getAdminAllowlist();
+  const managedUsers = user?.adminSettings?.managedUsers || [];
+  const metrics = user?.adminSettings?.metrics || {};
+
+  // Fetch problems from API on component mount
+  useEffect(() => {
+    const fetchProblems = async () => {
+      try {
+        setLoadingProblems(true);
+        const res = await fetch('/api/problems');
+        if (res.ok) {
+          const data = await res.json();
+          setApiProblems(data.problems || []);
+        }
+      } catch (err) {
+        console.error('Error fetching problems:', err);
+        setApiProblems([]);
+      } finally {
+        setLoadingProblems(false);
+      }
+    };
+    
+    fetchProblems();
+  }, []);
+
+  const customQuestions = useMemo(() => {
+    // Return API problems instead of localStorage
+    return apiProblems;
+  }, [apiProblems]);
+
+  const builtTests = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('testBuilderTests') || '[]');
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const interviewerUsers = managedUsers.filter((entry) => entry.role === 'interviewer');
+  const adminUsers = managedUsers.filter((entry) => entry.role === 'admin');
+  const learnerUsers = registeredUsers.filter((entry) => entry.role === 'learner');
+
+  const kpis = [
+    { label: 'Allowed Admin Emails', value: adminAllowlist.length, icon: ShieldCheck, color: 'text-cyan-500' },
+    { label: 'Interviewer Accounts', value: interviewerUsers.length, icon: Users, color: 'text-emerald-500' },
+    { label: 'Questions Added', value: customQuestions.length + (metrics.questionsAdded || 0), icon: FileCode2, color: 'text-amber-500' },
+    { label: 'Contests Arranged', value: builtTests.length + (metrics.contestsCreated || 0), icon: Target, color: 'text-rose-500' },
   ];
-
-  // Interviewer-specific KPIs
-  const interviewerKPIData = [
-    { label: 'Contests Created', value: '8', change: '+2', icon: Target, color: 'text-blue-500' },
-    { label: 'Problems Created', value: '127', change: '+15', icon: FileText, color: 'text-green-500' },
-    { label: 'Candidates Interviewed', value: '42', change: '+5', icon: Users, color: 'text-purple-500' },
-    { label: 'Active Contests', value: '3', change: 'on-going', icon: Calendar, color: 'text-orange-500' },
-  ];
-
-  const kpiData = isInterviewer ? interviewerKPIData : platformKPIData;
-
 
   const activityData = [
-    { day: 'Mon', submissions: 240 },
-    { day: 'Tue', submissions: 221 },
-    { day: 'Wed', submissions: 229 },
-    { day: 'Thu', submissions: 200 },
-    { day: 'Fri', submissions: 250 },
-    { day: 'Sat', submissions: 210 },
-    { day: 'Sun', submissions: 230 },
+    { name: 'Questions', value: customQuestions.length + (metrics.questionsAdded || 0), fill: '#22c55e' },
+    { name: 'Contests', value: builtTests.length + (metrics.contestsCreated || 0), fill: '#f97316' },
+    { name: 'Testcases', value: metrics.testcasesDesigned || builtTests.reduce((sum, test) => sum + (test.questions?.length || 0), 0), fill: '#06b6d4' },
+    { name: 'Managed Users', value: managedUsers.length, fill: '#8b5cf6' },
   ];
 
-  const difficultyData = [
-    { name: 'Easy', value: 320, fill: '#10b981' },
-    { name: 'Medium', value: 410, fill: '#f59e0b' },
-    { name: 'Hard', value: 117, fill: '#ef4444' },
+  const roleDistribution = [
+    { name: 'Admins', value: adminAllowlist.length + adminUsers.length, fill: '#0ea5e9' },
+    { name: 'Interviewers', value: interviewerUsers.length, fill: '#22c55e' },
+    { name: 'Learners', value: learnerUsers.length, fill: '#f59e0b' },
   ];
 
-  const submissionData = [
-    { language: 'JavaScript', count: 345 },
-    { language: 'Python', count: 298 },
-    { language: 'Java', count: 256 },
-    { language: 'C++', count: 189 },
-    { language: 'C#', count: 142 },
-  ];
+  const handleAssignRole = (event) => {
+    event.preventDefault();
+    if (!email.trim()) return;
 
-  const recentFeedback = [
-    { id: 1, user: 'John Doe', message: 'Great platform! Very helpful', rating: 5 },
-    { id: 2, user: 'Jane Smith', message: 'Need more hard problems', rating: 4 },
-    { id: 3, user: 'Bob Johnson', message: 'Bug found in Two Sum problem', rating: 3 },
-    { id: 4, user: 'Alice Brown', message: 'Love the explanations', rating: 5 },
-    { id: 5, user: 'Charlie Wilson', message: 'Can we add more categories?', rating: 4 },
-  ];
+    assignManagedUserRole({
+      email,
+      name,
+      role,
+    });
+
+    setEmail('');
+    setName('');
+    setRole('interviewer');
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              {isInterviewer ? 'Interviewer Dashboard' : 'Admin Dashboard'}
-            </h1>
-            <p className="text-muted-foreground">
-              {isInterviewer ? 'Manage contests and problems' : 'Platform analytics and insights'}
-            </p>
-          </div>
-          {isInterviewer && (
-            <Link to="/add-question">
-              <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-                <Plus className="h-4 w-4" />
-                New Problem
-              </button>
-            </Link>
-          )}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-bold text-foreground">Admin Panel</h1>
+          <p className="mt-2 text-muted-foreground">
+            Control privileged accounts, platform-level metrics, and interviewer access.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/admin/questions/add">
+            <Button className="bg-amber-500 hover:bg-amber-600">
+              <span>➕ Add New Question</span>
+            </Button>
+          </Link>
+          <Link to="/questions/add">
+            <Button variant="outline">Question Setup</Button>
+          </Link>
+          <Link to="/contests/new">
+            <Button>Create Contest</Button>
+          </Link>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpiData.map((kpi) => {
-          const Icon = kpi.icon;
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {kpis.map((item) => {
+          const Icon = item.icon;
           return (
-            <Card key={kpi.label}>
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{kpi.label}</p>
-                    <p className="text-3xl font-bold text-foreground mt-2">{kpi.value}</p>
-                    <p className="text-xs text-green-500 mt-2">{kpi.change}</p>
-                  </div>
-                  <Icon className={`h-8 w-8 opacity-50 ${kpi.color}`} />
+            <Card key={item.label} className="rounded-2xl">
+              <CardContent className="flex items-start justify-between p-6">
+                <div>
+                  <p className="text-sm text-muted-foreground">{item.label}</p>
+                  <p className="mt-2 text-3xl font-bold text-foreground">{item.value}</p>
                 </div>
+                <Icon className={`h-8 w-8 ${item.color}`} />
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      {isInterviewer ? (
-        // INTERVIEWER VIEW
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Active Contests */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Active Contests</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[
-                  { id: 1, name: 'Weekly Challenge #5', problems: 5, participants: 234 },
-                  { id: 2, name: 'Trees & Graphs Mastery', problems: 8, participants: 156 },
-                  { id: 3, name: 'Dynamic Programming Sprint', problems: 10, participants: 89 },
-                ].map((contest) => (
-                  <div key={contest.id} className="pb-4 border-b border-border last:border-b-0">
-                    <p className="font-semibold text-foreground">{contest.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {contest.problems} problems • {contest.participants} participants
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Problems Created */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Problems Created</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[
-                  { id: 1, title: 'Longest Palindromic Substring', difficulty: 'Medium', created: '2 days ago' },
-                  { id: 2, title: 'Course Schedule IV', difficulty: 'Hard', created: '1 week ago' },
-                  { id: 3, title: 'Majority Element', difficulty: 'Easy', created: '2 weeks ago' },
-                ].map((problem) => (
-                  <div key={problem.id} className="pb-4 border-b border-border last:border-b-0">
-                    <p className="font-semibold text-foreground">{problem.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {problem.difficulty} • {problem.created}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        // ADMIN VIEW
-        <div className="space-y-6">
-          {/* Charts */}
-          <div className="grid lg:grid-cols-2 gap-6">
-        {/* Activity Chart */}
-        <Card>
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <Card className="rounded-2xl">
           <CardHeader>
-            <CardTitle>Weekly Activity</CardTitle>
+            <CardTitle>Role Management</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <form onSubmit={handleAssignRole} className="grid gap-4 md:grid-cols-2">
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Display name"
+                className="rounded-lg border border-border bg-background px-4 py-2 text-foreground"
+              />
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="user@example.com"
+                className="rounded-lg border border-border bg-background px-4 py-2 text-foreground"
+                required
+              />
+              <select
+                value={role}
+                onChange={(event) => setRole(event.target.value)}
+                className="rounded-lg border border-border bg-background px-4 py-2 text-foreground"
+              >
+                <option value="interviewer">Interviewer</option>
+                <option value="admin">Admin</option>
+                <option value="learner">Learner</option>
+              </select>
+              <Button type="submit" className="inline-flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                Save role
+              </Button>
+            </form>
+
+            <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+              <p className="text-sm font-medium text-foreground">Bootstrap admin emails</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                These emails are always trusted as admins through `VITE_ADMIN_EMAILS`.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {adminAllowlist.length > 0 ? adminAllowlist.map((entry) => (
+                  <Badge key={entry} variant="outline">{entry}</Badge>
+                )) : <Badge variant="outline">No allowlist configured</Badge>}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+                <p className="text-sm font-medium text-foreground">Managed Interviewers</p>
+                <div className="mt-3 space-y-3">
+                  {interviewerUsers.length > 0 ? interviewerUsers.map((entry) => (
+                    <div key={entry.email} className="rounded-xl border border-border/60 p-3">
+                      <p className="font-medium text-foreground">{entry.name || entry.email}</p>
+                      <p className="text-sm text-muted-foreground">{entry.email}</p>
+                    </div>
+                  )) : <p className="text-sm text-muted-foreground">No interviewers assigned yet.</p>}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+                <p className="text-sm font-medium text-foreground">Managed Admins</p>
+                <div className="mt-3 space-y-3">
+                  {adminUsers.length > 0 ? adminUsers.map((entry) => (
+                    <div key={entry.email} className="rounded-xl border border-border/60 p-3">
+                      <p className="font-medium text-foreground">{entry.name || entry.email}</p>
+                      <p className="text-sm text-muted-foreground">{entry.email}</p>
+                    </div>
+                  )) : <p className="text-sm text-muted-foreground">No additional admins assigned from the panel.</p>}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Admin Scope</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[
+              'Add interviewer or additional admin accounts',
+              'Monitor questions added, contests arranged, and testcase design volume',
+              'Access platform analytics and management charts',
+              'Open question setup and contest creation flows',
+            ].map((item) => (
+              <div key={item} className="rounded-2xl border border-border/70 bg-background/60 p-4 text-sm text-foreground">
+                {item}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Platform Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={activityData}>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={activityData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="day" stroke="var(--muted-foreground)" />
+                <XAxis dataKey="name" stroke="var(--muted-foreground)" />
                 <YAxis stroke="var(--muted-foreground)" />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--card)',
                     border: '1px solid var(--border)',
-                    borderRadius: '0.5rem',
+                    borderRadius: '0.75rem',
                   }}
                 />
-                <Line type="monotone" dataKey="submissions" stroke="var(--accent)" strokeWidth={2} />
-              </LineChart>
+                <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                  {activityData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Difficulty Distribution */}
-        <Card>
+        <Card className="rounded-2xl">
           <CardHeader>
-            <CardTitle>Problem Difficulty Distribution</CardTitle>
+            <CardTitle>Role Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
-                  data={difficultyData}
+                  data={roleDistribution}
+                  dataKey="value"
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
+                  outerRadius={88}
                   label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
                 >
-                  {difficultyData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  {roleDistribution.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -210,63 +293,77 @@ export function AdminPage() {
         </Card>
       </div>
 
-      {/* Submissions by Language */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Submissions by Language</CardTitle>
+      <Card className="rounded-2xl">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle>Registered Users</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Local accounts created in this app instance, including assigned privileges and recent account activity.
+            </p>
+          </div>
+          <Badge variant="outline" className="inline-flex items-center gap-2">
+            <UserCog className="h-4 w-4" />
+            {registeredUsers.length} accounts
+          </Badge>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={submissionData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="language" stroke="var(--muted-foreground)" />
-              <YAxis stroke="var(--muted-foreground)" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'var(--card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '0.5rem',
-                }}
-              />
-              <Bar dataKey="count" fill="var(--accent)" />
-            </BarChart>
-          </ResponsiveContainer>
+        <CardContent className="p-0">
+          {registeredUsers.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-secondary/30">
+                  <tr className="text-left text-sm text-muted-foreground">
+                    <th className="px-6 py-4 font-medium">User</th>
+                    <th className="px-6 py-4 font-medium">Role</th>
+                    <th className="px-6 py-4 font-medium">Created</th>
+                    <th className="px-6 py-4 font-medium">Last sign in</th>
+                    <th className="px-6 py-4 font-medium">Solved</th>
+                    <th className="px-6 py-4 font-medium">Session</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/70">
+                  {registeredUsers.map((entry) => (
+                    <tr key={entry.id} className="text-sm text-foreground">
+                      <td className="px-6 py-4 align-top">
+                        <div>
+                          <p className="font-medium">{entry.name}</p>
+                          <p className="mt-1 text-muted-foreground">{entry.email}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 align-top">
+                        <Badge variant={entry.role === 'admin' ? 'default' : 'outline'}>
+                          {entry.role}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 align-top text-muted-foreground">
+                        {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : 'Unknown'}
+                      </td>
+                      <td className="px-6 py-4 align-top text-muted-foreground">
+                        {entry.lastLoginAt ? new Date(entry.lastLoginAt).toLocaleString() : 'Never'}
+                      </td>
+                      <td className="px-6 py-4 align-top">
+                        <div className="inline-flex items-center gap-2 text-muted-foreground">
+                          <Target className="h-4 w-4 text-accent" />
+                          {entry.problemsSolved}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 align-top">
+                        <div className="inline-flex items-center gap-2 text-muted-foreground">
+                          <Clock3 className="h-4 w-4 text-accent" />
+                          {entry.rememberMe ? 'Remembered' : 'Session only'}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-6 py-10 text-sm text-muted-foreground">
+              No local accounts have been registered yet.
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Recent Feedback - Admin only */}
-      {!isInterviewer && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Feedback</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentFeedback.map((feedback) => (
-                <div key={feedback.id} className="pb-4 border-b border-border last:border-b-0">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-foreground">{feedback.user}</p>
-                      <p className="text-sm text-muted-foreground">{feedback.message}</p>
-                    </div>
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <span key={i} className={i < feedback.rating ? 'text-yellow-400' : 'text-muted-foreground'}>
-                          ★
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-        </div>
-      )}
-
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   javascript: 63,
   python: 71,
   java: 62,
