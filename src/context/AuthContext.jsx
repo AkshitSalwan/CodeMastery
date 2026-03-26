@@ -691,19 +691,22 @@ export function AuthProvider({ children }) {
   const toggleBookmark = (problemId) => {
     setProfile((prev) => {
       if (!prev) return prev;
-      const exists = prev.bookmarkedProblems?.includes(problemId);
+      const normalizedId = String(problemId);
+      const existingBookmarks = (prev.bookmarkedProblems || []).map((id) => String(id));
+      const exists = existingBookmarks.includes(normalizedId);
       const next = {
         ...prev,
         bookmarkedProblems: exists
-          ? prev.bookmarkedProblems.filter((id) => id !== problemId)
-          : [...(prev.bookmarkedProblems || []), problemId],
+          ? existingBookmarks.filter((id) => id !== normalizedId)
+          : [...existingBookmarks, normalizedId],
       };
       persistProfile(next);
       return next;
     });
   };
 
-  const isBookmarked = (problemId) => profile?.bookmarkedProblems?.includes(problemId) || false;
+  const isBookmarked = (problemId) =>
+    (profile?.bookmarkedProblems || []).map((id) => String(id)).includes(String(problemId));
   const isProblemSolved = (problemId) => Boolean(profile?.learningProgress?.solvedProblems?.[problemId]);
 
   const markProblemSolved = (problem) => {

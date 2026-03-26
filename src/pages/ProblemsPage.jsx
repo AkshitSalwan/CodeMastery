@@ -11,6 +11,7 @@ export function ProblemsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('All');
   const [filterCategory, setFilterCategory] = useState('All');
+  const [sortBy, setSortBy] = useState('newest');
   const [apiProblems, setApiProblems] = useState([]);
   const [customQuestions, setCustomQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +87,22 @@ export function ProblemsPage() {
     Hard: 'bg-red-500/20 text-red-700 dark:text-red-400',
   };
 
+  const difficultyRank = {
+    Easy: 1,
+    Medium: 2,
+    Hard: 3,
+  };
+
+  const getAcceptanceRate = (problem) => {
+    const value = problem.acceptanceRate ?? problem.acceptance_rate ?? null;
+    if (value == null || value === '') {
+      return null;
+    }
+
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  };
+
   const filtered = allProblems.filter(
     (problem) => {
       // Handle both category (static) and tags (API) fields
@@ -101,6 +118,26 @@ export function ProblemsPage() {
       );
     }
   );
+
+  const sortedProblems = [...filtered].sort((left, right) => {
+    switch (sortBy) {
+      case 'title':
+        return String(left.title || '').localeCompare(String(right.title || ''));
+      case 'difficulty-asc':
+        return (difficultyRank[left.difficulty] || 99) - (difficultyRank[right.difficulty] || 99);
+      case 'difficulty-desc':
+        return (difficultyRank[right.difficulty] || 99) - (difficultyRank[left.difficulty] || 99);
+      case 'acceptance-desc':
+        return (getAcceptanceRate(right) ?? -1) - (getAcceptanceRate(left) ?? -1);
+      case 'acceptance-asc':
+        return (getAcceptanceRate(left) ?? 101) - (getAcceptanceRate(right) ?? 101);
+      case 'oldest':
+        return new Date(left.created_at || left.createdAt || 0).getTime() - new Date(right.created_at || right.createdAt || 0).getTime();
+      case 'newest':
+      default:
+        return new Date(right.created_at || right.createdAt || 0).getTime() - new Date(left.created_at || left.createdAt || 0).getTime();
+    }
+  });
 
   return (
     <div className="space-y-6">
@@ -147,12 +184,28 @@ export function ProblemsPage() {
               <option>Math</option>
             </select>
           </div>
+          <div>
+            <label className="text-sm text-muted-foreground">Sort</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="mt-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground"
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="title">Title A-Z</option>
+              <option value="difficulty-asc">Difficulty: Easy to Hard</option>
+              <option value="difficulty-desc">Difficulty: Hard to Easy</option>
+              <option value="acceptance-desc">Acceptance: High to Low</option>
+              <option value="acceptance-asc">Acceptance: Low to High</option>
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Problems Grid */}
       <div className="grid gap-4">
-        {filtered.map((problem) => (
+        {sortedProblems.map((problem) => (
           <Card
             key={problem.id}
             className="rounded-2xl border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-md"
@@ -203,7 +256,7 @@ export function ProblemsPage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4 text-sm text-muted-foreground">
-                <span>{problem.acceptanceRate ? `${problem.acceptanceRate.toFixed(1)}%` : '—'} acceptance</span>
+                <span>{getAcceptanceRate(problem) != null ? `${getAcceptanceRate(problem).toFixed(1)}%` : '-'} acceptance</span>
                 <div className="flex items-center gap-2">
                   <Link to={`/problems/${problem.id}/editor`}>
                     <Button size="sm" variant="outline">
@@ -227,7 +280,7 @@ export function ProblemsPage() {
         ))}
       </div>
 
-      {filtered.length === 0 && (
+      {sortedProblems.length === 0 && (
         <Card>
           <CardContent className="pt-6 text-center py-12">
             <p className="text-muted-foreground">No problems found matching your criteria</p>

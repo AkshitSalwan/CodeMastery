@@ -1,26 +1,133 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
-import { DAILY_CHALLENGES } from '../data/achievements';
+import { useAuth } from '../context/AuthContext';
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth-token');
+
+  return token
+    ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+    : { 'Content-Type': 'application/json' };
+};
 
 export function DailyChallengesPage() {
+  const { user } = useAuth();
+  const [todayData, setTodayData] = useState(null);
+  const [streakData, setStreakData] = useState({ currentStreak: 0, maxStreak: 0, recentProgress: [] });
+  const [history, setHistory] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [selectedChallenge, setSelectedChallenge] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState('');
 
-  const completedToday = DAILY_CHALLENGES.filter(
-    challenge =>
-      challenge.completed &&
-      new Date(challenge.completedAt).toDateString() === new Date().toDateString()
-  ).length;
+  const fetchJson = async (url, options = {}) => {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getAuthHeaders(),
+        ...(options.headers || {}),
+      },
+    });
 
-  const totalCompletedPoints = DAILY_CHALLENGES.filter(challenge => challenge.completed).reduce(
-    (sum, challenge) => sum + challenge.points,
-    0
-  );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || `Request failed: ${response.status}`);
+    }
 
-  const streak = DAILY_CHALLENGES.filter(c => c.completed).length; // Simplified streak calculation
+    return data;
+  };
 
-  const getDifficultyColor = difficulty => {
+  const loadDailyChallengeData = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const [today, streak, historyData, leaderboardData] = await Promise.all([
+        fetchJson('/api/dpp/today'),
+        fetchJson('/api/dpp/streak'),
+        fetchJson('/api/dpp/history'),
+        fetchJson('/api/dpp/leaderboard'),
+      ]);
+
+      setTodayData(today);
+      setStreakData(streak);
+      setHistory(historyData.history || []);
+      setLeaderboard(leaderboardData.leaderboard || []);
+    } catch (loadError) {
+      console.error('Failed to load daily challenge data:', loadError);
+      setError(loadError.message || 'Unable to load daily challenges.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const syncProgress = async () => {
+    setSyncing(true);
+    setError('');
+
+    try {
+      await fetchJson('/api/dpp/update', { method: 'POST' });
+      await loadDailyChallengeData();
+    } catch (syncError) {
+      console.error('Failed to sync daily challenge progress:', syncError);
+      setError(syncError.message || 'Unable to sync progress.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDailyChallengeData();
+  }, []);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      loadDailyChallengeData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  const challenges = useMemo(() => {
+    const problems = todayData?.problems || [];
+
+    return problems.map((problem, index) => ({
+      id: problem.id,
+      order: index + 1,
+      date: todayData?.date || new Date().toISOString().split('T')[0],
+      difficulty: String(problem.difficulty || '').replace(/^./, (char) => char.toUpperCase()),
+      points: Number(problem.points || 0),
+      completed: problem.userStatus === 'accepted',
+      completedAt: problem.userStatus === 'accepted' ? todayData?.date : null,
+      attempts: problem.userStatus === 'not_attempted' ? 0 : 1,
+      problem,
+    }));
+  }, [todayData]);
+
+  useEffect(() => {
+    if (challenges.length > 0) {
+      setSelectedChallenge((current) => current && challenges.some((item) => item.id === current.id)
+        ? challenges.find((item) => item.id === current.id)
+        : challenges[0]);
+    } else {
+      setSelectedChallenge(null);
+    }
+  }, [challenges]);
+
+  const completedToday = challenges.filter((challenge) => challenge.completed).length;
+  const totalChallenges = challenges.length;
+  const remainingToday = Math.max(totalChallenges - completedToday, 0);
+  const totalCompletedPoints = challenges
+    .filter((challenge) => challenge.completed)
+    .reduce((sum, challenge) => sum + challenge.points, 0);
+  const currentStreak = streakData.currentStreak || 0;
+  const progressPercent = totalChallenges > 0 ? Math.round((completedToday / totalChallenges) * 100) : 0;
+
+  const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
       case 'Easy':
         return 'text-green-600 dark:text-green-400';
@@ -33,7 +140,7 @@ export function DailyChallengesPage() {
     }
   };
 
-  const getDifficultyBg = difficulty => {
+  const getDifficultyBg = (difficulty) => {
     switch (difficulty) {
       case 'Easy':
         return 'bg-green-100 dark:bg-green-900/30';
@@ -46,60 +153,92 @@ export function DailyChallengesPage() {
     }
   };
 
+  if (loading) {
+    return <div className="py-12 text-center text-muted-foreground">Loading daily challenges...</div>;
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground">Daily Challenges</h1>
         <p className="text-muted-foreground mt-1">
-          Complete a challenge every day to build your skills and maintain your streak
+          Complete today&apos;s database-backed challenge set and track your streak.
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {error ? (
+        <Card className="border-destructive/30">
+          <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-accent">{completedToday}</div>
-              <div className="text-sm text-muted-foreground mt-2">Completed Today</div>
+          <CardContent className="p-6 text-center">
+            <div className="text-4xl font-bold text-accent">{completedToday}</div>
+            <div className="mt-2 text-sm text-muted-foreground">Completed Today</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="text-4xl font-bold text-accent">{currentStreak}</div>
+            <div className="mt-2 text-sm text-muted-foreground">Day Streak</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Best: {streakData.maxStreak || 0}
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-accent">{streak}</div>
-              <div className="text-sm text-muted-foreground mt-2">Day Streak</div>
-              <div className="text-xs text-muted-foreground mt-1">🔥 Keep it up!</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-accent">{totalCompletedPoints}</div>
-              <div className="text-sm text-muted-foreground mt-2">Total Points Earned</div>
-            </div>
+          <CardContent className="p-6 text-center">
+            <div className="text-4xl font-bold text-accent">{totalCompletedPoints}</div>
+            <div className="mt-2 text-sm text-muted-foreground">Total Points Earned Today</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Challenges List */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-lg font-semibold text-foreground">Today&apos;s Progress</div>
+              <div className="text-sm text-muted-foreground">
+                {completedToday}/{totalChallenges || 0} solved, {remainingToday} remaining
+              </div>
+            </div>
+            <div className="w-full md:max-w-md">
+              <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                <span>Completion</span>
+                <span>{progressPercent}%</span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-accent transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Today & Recent Challenges</CardTitle>
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle>Today&apos;s Challenge Set</CardTitle>
+                <Button size="sm" variant="outline" onClick={syncProgress} disabled={syncing}>
+                  {syncing ? 'Syncing...' : 'Sync Progress'}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {DAILY_CHALLENGES.map(challenge => (
+              {challenges.map((challenge) => (
                 <div
                   key={challenge.id}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                  className={`cursor-pointer rounded-lg border p-4 transition-all ${
                     selectedChallenge?.id === challenge.id
                       ? 'border-accent bg-accent/10'
                       : 'border-border hover:border-accent/50'
@@ -108,57 +247,31 @@ export function DailyChallengesPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      {/* Header */}
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="mb-2 flex items-center gap-3">
                         <div className="text-lg font-semibold text-foreground">
                           {challenge.problem.title}
                         </div>
-
-                        {/* Status Badge */}
-                        {challenge.completed && (
-                          <div className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold px-2 py-1 rounded-full">
-                            ✓ Completed
+                        {challenge.completed ? (
+                          <div className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                            Completed
                           </div>
-                        )}
-                        {!challenge.completed && challenge.attempts > 0 && (
-                          <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs font-semibold px-2 py-1 rounded-full">
-                            ⚡ In Progress
-                          </div>
-                        )}
+                        ) : null}
                       </div>
 
-                      {/* Date and Difficulty */}
                       <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span>{challenge.date.toLocaleDateString()}</span>
-                        <span
-                          className={`font-semibold ${getDifficultyColor(
-                            challenge.difficulty
-                          )}`}
-                        >
+                        <span>{new Date(challenge.date).toLocaleDateString()}</span>
+                        <span className={`font-semibold ${getDifficultyColor(challenge.difficulty)}`}>
                           {challenge.difficulty}
                         </span>
                       </div>
 
-                      {/* Points */}
                       <div className="mt-2 text-sm">
-                        <span className="text-accent font-semibold">{challenge.points} points</span>
-                        {challenge.completed && (
-                          <span className="text-muted-foreground ml-2">
-                            ({challenge.attempts} attempt{challenge.attempts !== 1 ? 's' : ''})
-                          </span>
-                        )}
+                        <span className="font-semibold text-accent">{challenge.points} points</span>
+                        <span className="ml-2 text-muted-foreground">Problem #{challenge.order}</span>
                       </div>
                     </div>
 
-                    {/* Action Button */}
-                    <Link
-                      to={
-                        challenge.completed
-                          ? `/problems/${challenge.problem.id}/review`
-                          : `/problems/${challenge.problem.id}/editor`
-                      }
-                      onClick={e => e.stopPropagation()}
-                    >
+                    <Link to={`/problems/${challenge.problem.id}/editor`} onClick={(event) => event.stopPropagation()}>
                       <Button className="ml-4 whitespace-nowrap">
                         {challenge.completed ? 'Review' : 'Solve'}
                       </Button>
@@ -166,11 +279,46 @@ export function DailyChallengesPage() {
                   </div>
                 </div>
               ))}
+
+              {challenges.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  No daily challenges were generated from the database yet.
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Recent Progress</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {history.length > 0 ? (
+                history
+                  .slice()
+                  .reverse()
+                  .map((entry) => (
+                    <div key={entry.date} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+                      <div>
+                        <div className="font-medium text-foreground">
+                          {new Date(entry.date).toLocaleDateString()}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {entry.problems_solved}/{entry.total_problems} solved
+                        </div>
+                      </div>
+                      <div className={entry.completed ? 'text-green-600' : 'text-yellow-600'}>
+                        {entry.completed ? 'Completed' : 'In Progress'}
+                      </div>
+                    </div>
+                  ))
+              ) : (
+                <div className="text-sm text-muted-foreground">No DPP history yet.</div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Challenge Details */}
         <div className="lg:col-span-1">
           {selectedChallenge ? (
             <Card>
@@ -178,41 +326,34 @@ export function DailyChallengesPage() {
                 <CardTitle className="text-lg">Challenge Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Title */}
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-1">Title</h3>
-                  <p className="font-semibold text-foreground">
-                    {selectedChallenge.problem.title}
-                  </p>
+                  <h3 className="mb-1 text-sm font-semibold text-muted-foreground">Title</h3>
+                  <p className="font-semibold text-foreground">{selectedChallenge.problem.title}</p>
                 </div>
 
-                {/* Difficulty and Points */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground mb-1">Difficulty</p>
+                    <p className="mb-1 text-xs font-semibold text-muted-foreground">Difficulty</p>
                     <div
-                      className={`${getDifficultyBg(
+                      className={`${getDifficultyBg(selectedChallenge.difficulty)} ${getDifficultyColor(
                         selectedChallenge.difficulty
-                      )} ${getDifficultyColor(
-                        selectedChallenge.difficulty
-                      )} text-center font-semibold px-3 py-2 rounded-lg text-sm`}
+                      )} rounded-lg px-3 py-2 text-center text-sm font-semibold`}
                     >
                       {selectedChallenge.difficulty}
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground mb-1">Points</p>
-                    <div className="bg-accent/10 text-accent text-center font-semibold px-3 py-2 rounded-lg text-sm">
+                    <p className="mb-1 text-xs font-semibold text-muted-foreground">Points</p>
+                    <div className="rounded-lg bg-accent/10 px-3 py-2 text-center text-sm font-semibold text-accent">
                       {selectedChallenge.points}
                     </div>
                   </div>
                 </div>
 
-                {/* Date */}
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1">Date</p>
+                  <p className="mb-1 text-xs font-semibold text-muted-foreground">Date</p>
                   <p className="text-foreground">
-                    {selectedChallenge.date.toLocaleDateString('en-US', {
+                    {new Date(selectedChallenge.date).toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
                       month: 'long',
@@ -221,41 +362,28 @@ export function DailyChallengesPage() {
                   </p>
                 </div>
 
-                {/* Description */}
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1">Description</p>
-                  <p className="text-sm text-foreground leading-relaxed">
+                  <p className="mb-1 text-xs font-semibold text-muted-foreground">Description</p>
+                  <p className="text-sm leading-relaxed text-foreground">
                     {selectedChallenge.problem.description}
                   </p>
                 </div>
 
-                {/* Status */}
-                {selectedChallenge.completed && (
-                  <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-lg">
-                    <p className="text-sm text-green-700 dark:text-green-400 font-semibold">
-                      ✓ Completed on{' '}
-                      {new Date(selectedChallenge.completedAt).toLocaleDateString()}
+                {selectedChallenge.completed ? (
+                  <div className="rounded-lg bg-green-100 p-3 dark:bg-green-900/30">
+                    <p className="text-sm font-semibold text-green-700 dark:text-green-400">
+                      Completed on {new Date(selectedChallenge.completedAt).toLocaleDateString()}
                     </p>
                   </div>
-                )}
+                ) : null}
 
-                {/* Attempts */}
-                {selectedChallenge.attempts > 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    Attempts: <span className="font-semibold">{selectedChallenge.attempts}</span>
-                  </div>
-                )}
+                <div className="text-xs text-muted-foreground">
+                  Signed in as <span className="font-semibold">{user?.email}</span>
+                </div>
 
-                {/* Action Button */}
-                <Link
-                  to={
-                    selectedChallenge.completed
-                      ? `/problems/${selectedChallenge.problem.id}/review`
-                      : `/problems/${selectedChallenge.problem.id}/editor`
-                  }
-                >
+                <Link to={`/problems/${selectedChallenge.problem.id}/editor`}>
                   <Button className="w-full">
-                    {selectedChallenge.completed ? 'View Solution' : 'Start Challenge'}
+                    {selectedChallenge.completed ? 'Review Solution' : 'Start Challenge'}
                   </Button>
                 </Link>
               </CardContent>
@@ -263,13 +391,34 @@ export function DailyChallengesPage() {
           ) : (
             <Card className="border-dashed">
               <CardContent className="p-8 text-center">
-                <div className="text-3xl mb-3">👈</div>
-                <p className="text-sm text-muted-foreground">
-                  Select a challenge to view details
-                </p>
+                <div className="mb-3 text-3xl">Select</div>
+                <p className="text-sm text-muted-foreground">Select a challenge to view details.</p>
               </CardContent>
             </Card>
           )}
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Leaderboard</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {leaderboard.length > 0 ? (
+                leaderboard.slice(0, 8).map((entry) => (
+                  <div key={entry.userId} className="flex items-center justify-between text-sm">
+                    <div>
+                      <div className="font-medium text-foreground">
+                        #{entry.rank} {entry.username}
+                      </div>
+                      <div className="text-muted-foreground">Max streak {entry.maxStreak}</div>
+                    </div>
+                    <div className="font-semibold text-accent">{entry.currentStreak}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">No leaderboard data yet.</div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

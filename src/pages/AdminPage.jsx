@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ShieldCheck, UserPlus, Users, Target, FileCode2, UserCog, Clock3 } from 'lucide-react';
+import { ShieldCheck, UserPlus, Users, Target, FileCode2, UserCog, Clock3, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
@@ -26,6 +26,7 @@ export function AdminPage() {
   const [role, setRole] = useState('interviewer');
   const [apiProblems, setApiProblems] = useState([]);
   const [loadingProblems, setLoadingProblems] = useState(true);
+  const [deletingProblemId, setDeletingProblemId] = useState(null);
 
   const adminAllowlist = getAdminAllowlist();
   const managedUsers = user?.adminSettings?.managedUsers || [];
@@ -51,6 +52,42 @@ export function AdminPage() {
     
     fetchProblems();
   }, []);
+
+  const handleDeleteProblem = async (problemId, problemTitle) => {
+    const confirmed = window.confirm(`Delete problem "${problemTitle}"? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    const token = localStorage.getItem('auth-token');
+    if (!token) {
+      window.alert('You must be logged in as admin to delete problems.');
+      return;
+    }
+
+    try {
+      setDeletingProblemId(problemId);
+      const response = await fetch(`/api/problems/${problemId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete problem.');
+      }
+
+      setApiProblems((current) => current.filter((problem) => problem.id !== problemId));
+    } catch (error) {
+      console.error('Delete problem error:', error);
+      window.alert(error.message || 'Unable to delete problem.');
+    } finally {
+      setDeletingProblemId(null);
+    }
+  };
 
   const customQuestions = useMemo(() => {
     // Return API problems instead of localStorage
@@ -292,6 +329,73 @@ export function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="rounded-2xl">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle>Manage Problems</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Admins can review the current problem set and permanently delete published problems.
+            </p>
+          </div>
+          <Badge variant="outline">
+            {loadingProblems ? 'Loading...' : `${apiProblems.length} problems`}
+          </Badge>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loadingProblems ? (
+            <div className="px-6 py-10 text-sm text-muted-foreground">Loading problems...</div>
+          ) : apiProblems.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-secondary/30">
+                  <tr className="text-left text-sm text-muted-foreground">
+                    <th className="px-6 py-4 font-medium">Title</th>
+                    <th className="px-6 py-4 font-medium">Difficulty</th>
+                    <th className="px-6 py-4 font-medium">Slug</th>
+                    <th className="px-6 py-4 font-medium">Points</th>
+                    <th className="px-6 py-4 font-medium text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/70">
+                  {apiProblems.map((problem) => (
+                    <tr key={problem.id} className="text-sm text-foreground">
+                      <td className="px-6 py-4 align-top">
+                        <div className="font-medium">{problem.title}</div>
+                      </td>
+                      <td className="px-6 py-4 align-top capitalize text-muted-foreground">
+                        {problem.difficulty}
+                      </td>
+                      <td className="px-6 py-4 align-top text-muted-foreground">
+                        {problem.slug}
+                      </td>
+                      <td className="px-6 py-4 align-top text-muted-foreground">
+                        {problem.points ?? 0}
+                      </td>
+                      <td className="px-6 py-4 align-top text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="inline-flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          onClick={() => handleDeleteProblem(problem.id, problem.title)}
+                          disabled={deletingProblemId === problem.id}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {deletingProblemId === problem.id ? 'Deleting...' : 'Delete'}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-6 py-10 text-sm text-muted-foreground">
+              No problems are available to delete.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="rounded-2xl">
         <CardHeader className="flex flex-row items-center justify-between gap-4">

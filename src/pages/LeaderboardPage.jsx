@@ -1,164 +1,177 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
-import { LEADERBOARD_DATA } from '../data/leaderboard';
+
+const fetchJson = async (url) => {
+  const response = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || `Request failed: ${response.status}`);
+  }
+
+  return data;
+};
 
 export function LeaderboardPage() {
-  const [sortBy, setSortBy] = useState('points'); // points, solved, streak
   const { profile } = useAuth();
-  const [timeframe, setTimeframe] = useState('all'); // all, week, month
+  const [sortBy, setSortBy] = useState('streak');
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const data = await fetchJson('/api/dpp/leaderboard');
+        setLeaderboard(data.leaderboard || []);
+      } catch (loadError) {
+        console.error('Failed to load leaderboard:', loadError);
+        setError(loadError.message || 'Unable to load leaderboard.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLeaderboard();
+  }, []);
 
   const currentUserData = {
-    name: profile?.name || 'User',
-    avatar: profile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.name || 'User'}`,
+    userId: profile?.id || 'current-user',
+    username: profile?.name || profile?.email || 'User',
+    avatar: profile?.avatar || `https://api.dicebear.com/7.x/thumbs/svg?seed=${profile?.name || 'User'}`,
     points: profile?.totalPoints || 0,
     problemsSolved: profile?.problemsSolved || 0,
-    streak: profile?.streak || 0,
+    currentStreak: profile?.streak || 0,
+    maxStreak: profile?.streak || 0,
+    todaySolved: 0,
+    todayAttempted: 0,
+    totalProblems: 0,
+    completedToday: false,
   };
 
-  const leaderboardWithUser = [
-    ...LEADERBOARD_DATA.filter(u => u.id !== 'user-1'), // Remove placeholder user
-    {
-      id: profile?.id || 'current-user',
-      name: currentUserData.name,
-      avatar: currentUserData.avatar,
-      points: currentUserData.points,
-      problemsSolved: currentUserData.problemsSolved,
-      streak: currentUserData.streak,
-      contests: profile?.contests || 0,
-      avgRating: 4.0,
-    }
-  ].sort((a, b) => {
-    switch (sortBy) {
-      case 'solved':
-        return b.problemsSolved - a.problemsSolved;
-      case 'streak':
-        return b.streak - a.streak;
-      case 'points':
-      default:
-        return b.points - a.points;
-    }
-  }).map((user, index) => ({ ...user, rank: index + 1 }));
+  const normalizedLeaderboard = useMemo(() => {
+    const apiRows = leaderboard.map((entry) => ({
+      userId: entry.userId,
+      username: entry.username,
+      avatar: entry.avatar || `https://api.dicebear.com/7.x/thumbs/svg?seed=${entry.username || entry.userId}`,
+      points: 0,
+      problemsSolved: 0,
+      currentStreak: entry.currentStreak || 0,
+      maxStreak: entry.maxStreak || 0,
+      todaySolved: entry.todaySolved || 0,
+      todayAttempted: entry.todayAttempted || 0,
+      totalProblems: entry.totalProblems || 0,
+      completedToday: Boolean(entry.completedToday),
+    }));
 
-  const sortedLeaderboard = leaderboardWithUser;
+    const mergedRows = apiRows.some((entry) => String(entry.userId) === String(currentUserData.userId))
+      ? apiRows.map((entry) =>
+          String(entry.userId) === String(currentUserData.userId)
+            ? {
+                ...entry,
+                points: currentUserData.points,
+                problemsSolved: currentUserData.problemsSolved,
+                avatar: currentUserData.avatar,
+              }
+            : entry
+        )
+      : [
+          ...apiRows,
+          currentUserData,
+        ];
 
-  const getMedalEmoji = rank => {
-    if (rank === 1) return '🥇';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
+    const sortedRows = [...mergedRows].sort((left, right) => {
+      switch (sortBy) {
+        case 'solved':
+          return right.todaySolved - left.todaySolved || right.currentStreak - left.currentStreak;
+        case 'points':
+          return right.points - left.points || right.currentStreak - left.currentStreak;
+        case 'streak':
+        default:
+          return right.currentStreak - left.currentStreak || right.maxStreak - left.maxStreak;
+      }
+    });
+
+    return sortedRows.map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+      isCurrentUser: String(entry.userId) === String(currentUserData.userId),
+    }));
+  }, [leaderboard, sortBy, currentUserData]);
+
+  const getMedal = (rank) => {
+    if (rank === 1) return '1';
+    if (rank === 2) return '2';
+    if (rank === 3) return '3';
     return '';
   };
 
+  if (loading) {
+    return <div className="py-12 text-center text-muted-foreground">Loading leaderboard...</div>;
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Global Leaderboard</h1>
-        <p className="text-muted-foreground mt-1">
-          See how you rank against other developers worldwide
+        <h1 className="text-3xl font-bold text-foreground">Daily Challenge Leaderboard</h1>
+        <p className="mt-1 text-muted-foreground">
+          Live rankings from database-backed DPP progress and streaks.
         </p>
       </div>
 
-      {/* User's Current Stats - hide for interviewers */}
-      {profile?.role !== 'interviewer' && (
-        <Card className="border-accent/50 bg-accent/5">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <img
-                  src={currentUserData.avatar}
-                  alt={currentUserData.name}
-                  className="w-12 h-12 rounded-full"
-                />
-                <div>
-                  <div className="text-sm text-muted-foreground">Your Stats</div>
-                  <div className="text-2xl font-bold text-foreground">{currentUserData.name}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-8">
-                <div className="text-center">
-                  <div className="text-xl font-bold text-accent">{currentUserData.points}</div>
-                  <div className="text-xs text-muted-foreground">Points</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-accent">{currentUserData.problemsSolved}</div>
-                  <div className="text-xs text-muted-foreground">Solved</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-accent">{currentUserData.streak}</div>
-                  <div className="text-xs text-muted-foreground">Streak</div>
-                </div>
+      {error ? (
+        <Card className="border-destructive/30">
+          <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      ) : null}
+
+      <Card className="border-accent/50 bg-accent/5">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <img src={currentUserData.avatar} alt={currentUserData.username} className="h-12 w-12 rounded-full" />
+              <div>
+                <div className="text-sm text-muted-foreground">Your Stats</div>
+                <div className="text-2xl font-bold text-foreground">{currentUserData.username}</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-foreground">Sort By</label>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setSortBy('points')}
-              variant={sortBy === 'points' ? 'default' : 'outline'}
-              className={sortBy === 'points' ? 'bg-accent text-accent-foreground' : ''}
-              size="sm"
-            >
-              Points
-            </Button>
-            <Button
-              onClick={() => setSortBy('solved')}
-              variant={sortBy === 'solved' ? 'default' : 'outline'}
-              className={sortBy === 'solved' ? 'bg-accent text-accent-foreground' : ''}
-              size="sm"
-            >
-              Problems Solved
-            </Button>
-            <Button
-              onClick={() => setSortBy('streak')}
-              variant={sortBy === 'streak' ? 'default' : 'outline'}
-              className={sortBy === 'streak' ? 'bg-accent text-accent-foreground' : ''}
-              size="sm"
-            >
-              Streak
-            </Button>
+            <div className="grid grid-cols-3 gap-6 text-center">
+              <div>
+                <div className="text-xl font-bold text-accent">{currentUserData.points}</div>
+                <div className="text-xs text-muted-foreground">Points</div>
+              </div>
+              <div>
+                <div className="text-xl font-bold text-accent">{currentUserData.problemsSolved}</div>
+                <div className="text-xs text-muted-foreground">Solved</div>
+              </div>
+              <div>
+                <div className="text-xl font-bold text-accent">{currentUserData.currentStreak}</div>
+                <div className="text-xs text-muted-foreground">Streak</div>
+              </div>
+            </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-foreground">Timeframe</label>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setTimeframe('all')}
-              variant={timeframe === 'all' ? 'default' : 'outline'}
-              className={timeframe === 'all' ? 'bg-accent text-accent-foreground' : ''}
-              size="sm"
-            >
-              All Time
-            </Button>
-            <Button
-              onClick={() => setTimeframe('month')}
-              variant={timeframe === 'month' ? 'default' : 'outline'}
-              className={timeframe === 'month' ? 'bg-accent text-accent-foreground' : ''}
-              size="sm"
-            >
-              This Month
-            </Button>
-            <Button
-              onClick={() => setTimeframe('week')}
-              variant={timeframe === 'week' ? 'default' : 'outline'}
-              className={timeframe === 'week' ? 'bg-accent text-accent-foreground' : ''}
-              size="sm"
-            >
-              This Week
-            </Button>
-          </div>
-        </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant={sortBy === 'streak' ? 'default' : 'outline'} onClick={() => setSortBy('streak')}>
+          Current Streak
+        </Button>
+        <Button size="sm" variant={sortBy === 'solved' ? 'default' : 'outline'} onClick={() => setSortBy('solved')}>
+          Today Solved
+        </Button>
+        <Button size="sm" variant={sortBy === 'points' ? 'default' : 'outline'} onClick={() => setSortBy('points')}>
+          Points
+        </Button>
       </div>
 
-      {/* Leaderboard Table */}
       <Card>
         <CardHeader>
           <CardTitle>Top Performers</CardTitle>
@@ -168,90 +181,46 @@ export function LeaderboardPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-sm">
-                    Rank
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-sm">
-                    User
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-sm">
-                    Points
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-sm">
-                    Solved
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-sm">
-                    Streak
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-sm">
-                    Contests
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-sm">
-                    Rating
-                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-muted-foreground">Rank</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-muted-foreground">User</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-muted-foreground">Current Streak</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-muted-foreground">Best Streak</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-muted-foreground">Today</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-muted-foreground">Completion</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedLeaderboard.map((user, idx) => (
+                {normalizedLeaderboard.map((entry) => (
                   <tr
-                    key={user.id}
-                    className={`border-b border-border hover:bg-muted/50 transition-colors ${
-                      user.id === 'user-1' ? 'bg-accent/10' : ''
+                    key={entry.userId}
+                    className={`border-b border-border transition-colors hover:bg-muted/50 ${
+                      entry.isCurrentUser ? 'bg-accent/10' : ''
                     }`}
                   >
-                    {/* Rank */}
-                    <td className="py-4 px-4">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">{getMedalEmoji(user.rank)}</span>
-                        <span className="font-bold text-foreground">#{user.rank}</span>
+                        <span className="text-lg">{getMedal(entry.rank)}</span>
+                        <span className="font-bold text-foreground">#{entry.rank}</span>
                       </div>
                     </td>
-
-                    {/* User */}
-                    <td className="py-4 px-4">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={user.avatar}
-                          alt={user.name}
-                          className="w-8 h-8 rounded-full"
-                        />
+                        <img src={entry.avatar} alt={entry.username} className="h-8 w-8 rounded-full" />
                         <div>
-                          <div className="font-semibold text-foreground text-sm">{user.name}</div>
-                          {user.id === 'user-1' && (
-                            <div className="text-xs text-accent font-semibold">You</div>
-                          )}
+                          <div className="text-sm font-semibold text-foreground">{entry.username}</div>
+                          {entry.isCurrentUser ? <div className="text-xs font-semibold text-accent">You</div> : null}
                         </div>
                       </div>
                     </td>
-
-                    {/* Points */}
-                    <td className="py-4 px-4 text-center">
-                      <div className="font-bold text-accent">{user.points.toLocaleString()}</div>
+                    <td className="px-4 py-4 text-center font-semibold text-foreground">{entry.currentStreak}</td>
+                    <td className="px-4 py-4 text-center font-semibold text-foreground">{entry.maxStreak}</td>
+                    <td className="px-4 py-4 text-center font-semibold text-foreground">
+                      {entry.todaySolved}/{entry.totalProblems || 0}
                     </td>
-
-                    {/* Solved */}
-                    <td className="py-4 px-4 text-center">
-                      <div className="font-semibold text-foreground">{user.problemsSolved}</div>
-                    </td>
-
-                    {/* Streak */}
-                    <td className="py-4 px-4 text-center">
-                      <div className="font-semibold text-foreground flex items-center justify-center gap-1">
-                        🔥 {user.streak}
-                      </div>
-                    </td>
-
-                    {/* Contests */}
-                    <td className="py-4 px-4 text-center">
-                      <div className="font-semibold text-foreground">{user.contests}</div>
-                    </td>
-
-                    {/* Rating */}
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <span>⭐</span>
-                        <span className="font-semibold text-foreground">{user.avgRating}</span>
-                      </div>
+                    <td className="px-4 py-4 text-center">
+                      <span className={entry.completedToday ? 'font-semibold text-green-600' : 'text-muted-foreground'}>
+                        {entry.completedToday ? 'Completed' : 'In Progress'}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -261,47 +230,31 @@ export function LeaderboardPage() {
         </CardContent>
       </Card>
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-accent">
-                {sortedLeaderboard.length.toLocaleString()}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">Total Users</div>
-              <div className="text-xs text-muted-foreground">Competing worldwide</div>
-            </div>
+          <CardContent className="p-6 text-center">
+            <div className="text-2xl font-bold text-accent">{normalizedLeaderboard.length}</div>
+            <div className="mt-1 text-sm text-muted-foreground">Tracked Users</div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-accent">
-                {Math.floor(
-                  sortedLeaderboard.reduce((sum, u) => sum + u.problemsSolved, 0) /
-                    sortedLeaderboard.length
-                )}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">Avg Problems Solved</div>
-              <div className="text-xs text-muted-foreground">Per user</div>
+          <CardContent className="p-6 text-center">
+            <div className="text-2xl font-bold text-accent">
+              {normalizedLeaderboard.length
+                ? Math.round(normalizedLeaderboard.reduce((sum, entry) => sum + entry.todaySolved, 0) / normalizedLeaderboard.length)
+                : 0}
             </div>
+            <div className="mt-1 text-sm text-muted-foreground">Average Today Solved</div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-accent">
-                {(
-                  sortedLeaderboard.reduce((sum, u) => sum + u.streak, 0) /
-                  sortedLeaderboard.length
-                ).toFixed(1)}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">Avg Streak</div>
-              <div className="text-xs text-muted-foreground">Days</div>
+          <CardContent className="p-6 text-center">
+            <div className="text-2xl font-bold text-accent">
+              {normalizedLeaderboard.length
+                ? (normalizedLeaderboard.reduce((sum, entry) => sum + entry.currentStreak, 0) / normalizedLeaderboard.length).toFixed(1)
+                : '0.0'}
             </div>
+            <div className="mt-1 text-sm text-muted-foreground">Average Current Streak</div>
           </CardContent>
         </Card>
       </div>
