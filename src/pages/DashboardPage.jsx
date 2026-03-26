@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
@@ -119,17 +119,95 @@ const readJson = (storageKey, fallback) => {
   }
 };
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth-token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export function DashboardPage() {
   const { user } = useAuth();
   const isInterviewer = isInterviewerRole(user?.role);
+  const [acceptedSubmissions, setAcceptedSubmissions] = useState([]);
+  const [submissionStatsLoaded, setSubmissionStatsLoaded] = useState(false);
 
   const solvedProblems = useMemo(() => buildSolvedProblems(user), [user]);
+
+  useEffect(() => {
+    if (isInterviewer || !user) {
+      setAcceptedSubmissions([]);
+      setSubmissionStatsLoaded(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAcceptedSubmissions = async () => {
+      try {
+        const response = await fetch('/api/problems/user/submissions?verdict=accepted&limit=500', {
+          headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load submissions: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!cancelled) {
+          setAcceptedSubmissions(data.submissions || []);
+          setSubmissionStatsLoaded(true);
+        }
+      } catch (error) {
+        console.error('Failed to load accepted submissions for dashboard:', error);
+        if (!cancelled) {
+          setAcceptedSubmissions([]);
+          setSubmissionStatsLoaded(false);
+        }
+      }
+    };
+
+    loadAcceptedSubmissions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isInterviewer, user]);
+
+  const backendSolvedProblems = useMemo(() => {
+    const solvedMap = new Map();
+
+    acceptedSubmissions.forEach((submission) => {
+      const key = String(submission.problem_id);
+      const timestamp = submission.submitted_at || submission.created_at;
+
+      if (!key || !timestamp) {
+        return;
+      }
+
+      const existing = solvedMap.get(key);
+      if (!existing || new Date(existing.lastSolvedAt).getTime() < new Date(timestamp).getTime()) {
+        solvedMap.set(key, {
+          id: submission.problem_id,
+          title: submission.problem?.title || `Problem ${submission.problem_id}`,
+          difficulty: submission.problem?.difficulty || 'Unknown',
+          categories: [],
+          solvedAt: existing?.solvedAt || timestamp,
+          lastSolvedAt: timestamp,
+        });
+      }
+    });
+
+    return Array.from(solvedMap.values()).sort(
+      (left, right) => new Date(right.lastSolvedAt || right.solvedAt || 0).getTime() - new Date(left.lastSolvedAt || left.solvedAt || 0).getTime()
+    );
+  }, [acceptedSubmissions]);
+
+  const effectiveSolvedProblems = submissionStatsLoaded ? backendSolvedProblems : solvedProblems;
   const dueReviews = useMemo(
     () =>
-      solvedProblems.filter(
+      effectiveSolvedProblems.filter(
         (entry) => entry.nextReviewAt && new Date(entry.nextReviewAt).getTime() <= Date.now()
       ),
-    [solvedProblems]
+    [effectiveSolvedProblems]
   );
   const assessmentsCompleted = useMemo(
     () =>
@@ -139,8 +217,8 @@ export function DashboardPage() {
       ),
     [user]
   );
-  const weeklyProgress = useMemo(() => buildWeeklyProgress(solvedProblems), [solvedProblems]);
-  const learnerActivities = useMemo(() => buildLearnerActivities(user, solvedProblems), [solvedProblems, user]);
+  const weeklyProgress = useMemo(() => buildWeeklyProgress(effectiveSolvedProblems), [effectiveSolvedProblems]);
+  const learnerActivities = useMemo(() => buildLearnerActivities(user, effectiveSolvedProblems), [effectiveSolvedProblems, user]);
 
   const customQuestions = useMemo(() => readJson('customQuestions', []), []);
   const builtTests = useMemo(() => readJson('testBuilderTests', []), []);
@@ -157,8 +235,8 @@ export function DashboardPage() {
     .slice(0, 5);
 
   const learnerStats = [
-    { label: 'Problems Solved', value: solvedProblems.length, icon: Code2, color: 'text-blue-500' },
-    { label: 'Current Streak', value: getCurrentStreak(solvedProblems), icon: Flame, color: 'text-orange-500' },
+    { label: 'Problems Solved', value: effectiveSolvedProblems.length, icon: Code2, color: 'text-blue-500' },
+    { label: 'Current Streak', value: getCurrentStreak(effectiveSolvedProblems), icon: Flame, color: 'text-orange-500' },
     { label: 'Reviews Due', value: dueReviews.length, icon: BrainCircuit, color: 'text-emerald-500' },
     { label: 'Assessments', value: assessmentsCompleted, icon: Trophy, color: 'text-purple-500' },
   ];

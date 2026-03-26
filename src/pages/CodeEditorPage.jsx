@@ -47,6 +47,52 @@ export function CodeEditorPage() {
   const [runnerMode, setRunnerMode] = useState('sample'); // 'sample' or 'custom'
   const editorRef = useRef(null);
 
+  const normalizeProblemData = (rawProblem) => {
+    if (!rawProblem) {
+      return rawProblem;
+    }
+
+    const normalizedProblem = { ...rawProblem };
+
+    const toArray = (value) => {
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      if (value == null || value === '') {
+        return [];
+      }
+
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+        } catch (error) {
+          return value
+            .split('\n')
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
+      }
+
+      return [];
+    };
+
+    normalizedProblem.constraints = toArray(normalizedProblem.constraints);
+    normalizedProblem.hints = toArray(normalizedProblem.hints);
+    normalizedProblem.examples = toArray(normalizedProblem.examples);
+    normalizedProblem.test_cases = toArray(normalizedProblem.test_cases);
+    normalizedProblem.tags = Array.isArray(normalizedProblem.tags) ? normalizedProblem.tags : [];
+
+    if (!normalizedProblem.difficulty && normalizedProblem.difficulty !== '') {
+      normalizedProblem.difficulty = 'Unknown';
+    }
+
+    return normalizedProblem;
+  };
+
   // Fetch problem from API or static data
   useEffect(() => {
     const fetchProblem = async () => {
@@ -56,47 +102,17 @@ export function CodeEditorPage() {
         const response = await fetch(`/api/problems/${id}`);
         if (response.ok) {
           const data = await response.json();
-          // Parse JSON string fields from API
-          const problem = data.problem || data;
-          if (problem.constraints && typeof problem.constraints === 'string') {
-            try {
-              problem.constraints = JSON.parse(problem.constraints);
-            } catch (e) {
-              problem.constraints = [];
-            }
-          }
-          if (problem.hints && typeof problem.hints === 'string') {
-            try {
-              problem.hints = JSON.parse(problem.hints);
-            } catch (e) {
-              problem.hints = [];
-            }
-          }
-          if (problem.examples && typeof problem.examples === 'string') {
-            try {
-              problem.examples = JSON.parse(problem.examples);
-            } catch (e) {
-              problem.examples = [];
-            }
-          }
-          if (problem.test_cases && typeof problem.test_cases === 'string') {
-            try {
-              problem.test_cases = JSON.parse(problem.test_cases);
-            } catch (e) {
-              problem.test_cases = [];
-            }
-          }
-          setProblem(problem);
+          setProblem(normalizeProblemData(data.problem || data));
         } else {
           // Fall back to static problems
           const staticProblem = problems.find(p => String(p.id) === String(id));
-          setProblem(staticProblem);
+          setProblem(normalizeProblemData(staticProblem));
         }
       } catch (error) {
         console.error('Error fetching problem:', error);
         // Fall back to static problems
         const staticProblem = problems.find(p => String(p.id) === String(id));
-        setProblem(staticProblem);
+        setProblem(normalizeProblemData(staticProblem));
       } finally {
         setLoading(false);
       }
@@ -505,6 +521,101 @@ export function CodeEditorPage() {
   };
 
   const handleSubmit = async () => {
+    if (!code.trim()) {
+      setOutput('Error: No code to submit. Please write something in the editor.');
+      return;
+    }
+
+    setIsSubmitted(true);
+    setSubmissionStatus('running');
+    setIsRunning(true);
+    setOutput('Submitting solution...');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const response = await fetch(`${API_BASE}/api/problems/submit`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          problem_id: problem?.id,
+          code: code.trim(),
+          language,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        let errorMessage = `Error from backend (${response.status}):\n${errText}`;
+
+        if (response.status === 401) {
+          const token = localStorage.getItem('auth-token');
+          errorMessage = token
+            ? `Authentication failed. Your session may have expired. Please log in again.\n\nError: ${errText}`
+            : `Authentication required. Please log in to submit code.\n\nError: ${errText}`;
+        }
+
+        setSubmissionStatus('failed');
+        setOutput(errorMessage);
+        return;
+      }
+
+      const result = await response.json();
+      const submission = result.submission || {};
+      const verdict = submission.verdict || 'wrong_answer';
+      const visibleResults = (submission.test_results || []).map((testResult, index) => ({
+        testNum: index + 1,
+        input: testResult.input,
+        expected: testResult.expectedOutput,
+        output: (testResult.actualOutput || '').trim(),
+        passed: testResult.passed === true,
+        time: testResult.runtime,
+        memory: testResult.memory,
+        error: testResult.error,
+      }));
+
+      setTestResults(visibleResults);
+
+      const accepted = verdict === 'accepted';
+      setSubmissionStatus(accepted ? 'accepted' : 'failed');
+
+      if (accepted) {
+        setOutput(`Accepted\n\nPassed ${submission.passed_tests}/${submission.total_tests} test cases`);
+        if (problem) {
+          markProblemSolved(problem);
+        }
+      } else {
+        const details = visibleResults.length > 0
+          ? visibleResults
+              .map((testResult) => {
+                const status = testResult.passed ? 'PASS' : 'FAIL';
+                return `Test ${testResult.testNum}: ${status}\nInput: ${testResult.input}\nExpected: ${testResult.expected}\nGot: ${testResult.output || testResult.error || ''}`;
+              })
+              .join('\n\n')
+          : 'No visible test case details returned.';
+
+        setOutput(
+          `${String(verdict).replace(/_/g, ' ')}\n\nPassed ${submission.passed_tests}/${submission.total_tests} test cases\n\n${details}`
+        );
+      }
+
+      try {
+        await fetch(`${API_BASE}/api/dpp/update`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+      } catch (progressError) {
+        console.warn('Failed to refresh DPP progress after submission:', progressError);
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      setSubmissionStatus('failed');
+      setOutput('Unexpected error while submitting code.');
+    } finally {
+      setIsRunning(false);
+    }
+
+    return;
+
     setIsSubmitted(true);
     setSubmissionStatus('running');
     setOutput('Running tests...');

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import judgeService from './services/judgeService.js';
 import compareOutput from './utils/compareOutput.js';
 import {
@@ -11,6 +11,7 @@ import {
 } from './utils/problemExecution.js';
 import learnersPlatformRouter from '../learners-platform/backend/index.js';
 import authRouter from './routes/auth.js';
+import dppRouter from './routes/dpp.js';
 import problemsRouter from './routes/problems.js';
 import userdataRouter from './routes/userdata.js';
 import { testConnection, syncDatabase } from './config/database.js';
@@ -51,16 +52,29 @@ public class Main {
 
 function createApp() {
   const app = express();
+  const allowedOrigins = new Set(['http://localhost:3000', 'http://127.0.0.1:3000']);
 
   app.disable('x-powered-by');
-  
-  // CORS configuration - allow frontend to access backend
-  app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  }));
+
+  // Keep frontend API access working without relying on an undeclared cors package.
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+
+    if (origin && allowedOrigins.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
+
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+
+    next();
+  });
   
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
@@ -70,6 +84,7 @@ function createApp() {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/dpp', dppRouter);
 
   app.use('/api/problems', problemsRouter);
 
@@ -223,6 +238,6 @@ function startServer(port = Number(process.env.PORT) || 4000) {
 
 export { createApp, startServer };
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   startServer();
 }

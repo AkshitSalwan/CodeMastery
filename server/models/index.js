@@ -3,10 +3,19 @@ import User from './user.js';
 import Problem from './Problem.js';
 import Submission from './Submission.js';
 import Topic from './Topic.js';
+import Badge from './Badge.js';
+import Resource from './Resource.js';
+import DailyProblem from './DailyProblem.js';
+import UserDPPProgress from './UserDPPProgress.js';
 
-// Note: Other models would be imported here similarly
-// import Badge from './Badge.js';
-// import Bookmark from './Bookmark.js';
-// etc...
-
-export { sequelize, User, Problem, Submission, Topic };
+export {
+  sequelize,
+  User,
+  Problem,
+  Submission,
+  Topic,
+  Badge,
+  Resource,
+  DailyProblem,
+  UserDPPProgress,
+};

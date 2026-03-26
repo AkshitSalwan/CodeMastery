@@ -377,7 +377,6 @@ export const getSubmission = asyncHandler(async (req, res) => {
   const userId = req.dbUser.id;
   
   const submission = await Submission.findByPk(id);
-  // Removed include clause - association not properly configured
   
   if (!submission) {
     throw new NotFoundError('Submission');
@@ -387,8 +386,17 @@ export const getSubmission = asyncHandler(async (req, res) => {
   if (submission.user_id !== userId && req.dbUser.role === 'learner') {
     throw new ValidationError('Not authorized to view this submission');
   }
+
+  const problem = await Problem.findByPk(submission.problem_id, {
+    attributes: ['id', 'title', 'difficulty', 'slug']
+  });
   
-  res.json({ submission });
+  res.json({
+    submission: {
+      ...submission.toJSON(),
+      problem: problem ? problem.toJSON() : null
+    }
+  });
 });
 
 // Get user submissions
@@ -405,11 +413,24 @@ export const getUserSubmissions = asyncHandler(async (req, res) => {
     limit: parseInt(limit),
     offset: (parseInt(page) - 1) * parseInt(limit),
     order: [['submitted_at', 'DESC']]
-    // Removed include clause - association not properly configured
   });
+
+  const problemIds = [...new Set(submissions.map((submission) => submission.problem_id).filter(Boolean))];
+  const problems = problemIds.length
+    ? await Problem.findAll({
+        where: { id: problemIds },
+        attributes: ['id', 'title', 'difficulty', 'slug'],
+        raw: true
+      })
+    : [];
+  const problemMap = new Map(problems.map((problem) => [problem.id, problem]));
+  const submissionsWithProblem = submissions.map((submission) => ({
+    ...submission.toJSON(),
+    problem: problemMap.get(submission.problem_id) || null
+  }));
   
   res.json({
-    submissions,
+    submissions: submissionsWithProblem,
     pagination: {
       total: count,
       page: parseInt(page),
