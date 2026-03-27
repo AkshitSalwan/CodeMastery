@@ -491,79 +491,68 @@ export function AuthProvider({ children }) {
   const login = async ({ email, password, rememberMe = true }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     
-    // Try backend API first
+    // Try backend API
+    const apiUrl = '/api/auth/login';
+    
     try {
-      const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        ? 'http://localhost:4000/api/auth/login'
-        : '/api/auth/login';
-      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: normalizedEmail, password })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const backendUser = {
-          id: data.user.id,
-          email: data.user.email,
-          password,
-          username: data.user.username,
-          role: data.user.role,
-          profile: {
-            role: data.user.role,
-            totalPoints: 0,
-            streak: 0,
-            problemsSolved: 0,
-            bio: data.user.bio || '',
-            avatar: data.user.avatar || 'https://api.dicebear.com/7.x/thumbs/svg?seed=' + data.user.email,
-            bookmarkedProblems: [],
-          }
-        };
-
-        const loginTimestamp = new Date().toISOString();
-        const nextProfile = mergeProfileUpdates(buildProfileFromAccount(backendUser), {
-          security: {
-            rememberMe,
-            lastLoginAt: loginTimestamp,
-          },
-        });
-
-        persistProfile(nextProfile, {
-          rememberMe,
-          loginTimestamp,
-          nextPassword: password,
-        });
-        
-        // Also store the backend token
-        localStorage.setItem('auth-token', data.token);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
       }
-    } catch (apiError) {
-      console.warn('Backend API unavailable, trying localStorage', apiError);
-    }
 
-    // Fallback to localStorage
-    const users = readUsers();
-    const account = users.find((entry) => String(entry.email || '').trim().toLowerCase() === normalizedEmail);
+      const data = await response.json();
+      
+      if (!data.token) {
+        throw new Error('No authentication token received from server');
+      }
 
-    if (!account || account.password !== password) {
-      throw new Error('Invalid email or password.');
-    }
+      const backendUser = {
+        id: data.user.id,
+        email: data.user.email,
+        password,
+        username: data.user.username,
+        role: data.user.role,
+        profile: {
+          role: data.user.role,
+          totalPoints: 0,
+          streak: 0,
+          problemsSolved: 0,
+          bio: data.user.bio || '',
+          avatar: data.user.avatar || 'https://api.dicebear.com/7.x/thumbs/svg?seed=' + data.user.email,
+          bookmarkedProblems: [],
+        }
+      };
 
-    const loginTimestamp = new Date().toISOString();
-    const nextProfile = mergeProfileUpdates(buildProfileFromAccount(account), {
-      security: {
+      const loginTimestamp = new Date().toISOString();
+      const nextProfile = mergeProfileUpdates(buildProfileFromAccount(backendUser), {
+        security: {
+          rememberMe,
+          lastLoginAt: loginTimestamp,
+        },
+      });
+
+      persistProfile(nextProfile, {
         rememberMe,
-        lastLoginAt: loginTimestamp,
-      },
-    });
-
-    persistProfile(nextProfile, {
-      rememberMe,
-      loginTimestamp,
-    });
+        loginTimestamp,
+        nextPassword: password,
+      });
+      
+      // Store the real JWT token from backend
+      localStorage.setItem('auth-token', data.token);
+      return;
+    } catch (apiError) {
+      console.error('Backend login error:', apiError);
+      throw new Error(
+        apiError.message || 
+        'Unable to connect to authentication server. Please ensure the backend server is running on port 4000.'
+      );
+    }
   };
 
   const updateUser = (updates) => {

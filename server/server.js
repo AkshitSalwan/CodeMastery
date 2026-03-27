@@ -14,8 +14,11 @@ import authRouter from './routes/auth.js';
 import dppRouter from './routes/dpp.js';
 import problemsRouter from './routes/problems.js';
 import userdataRouter from './routes/userdata.js';
+import badgeRouter from './routes/badges.js';
+import feedbackRouter from './routes/feedback.js';
 import { testConnection, syncDatabase } from './config/database.js';
 import { createAdminUser } from './seeders/createAdminUser.js';
+import { createBadges } from './seeders/createBadges.js';
 
 function buildJavaDriver(code) {
   // Remove any existing Main class if present (handles both single and multi-line)
@@ -85,6 +88,8 @@ function createApp() {
 
   app.use('/api/auth', authRouter);
   app.use('/api/dpp', dppRouter);
+  app.use('/api/badges', badgeRouter);
+  app.use('/api/feedback', feedbackRouter);
 
   app.use('/api/problems', problemsRouter);
 
@@ -224,6 +229,9 @@ function startServer(port = Number(process.env.PORT) || 4000) {
       
       // Create admin user if it doesn't exist
       await createAdminUser();
+      
+      // Create badges if they don't exist
+      await createBadges();
       
       // Start listening
       app.listen(port, () => {
