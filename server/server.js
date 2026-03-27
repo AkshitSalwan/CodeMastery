@@ -16,9 +16,11 @@ import problemsRouter from './routes/problems.js';
 import userdataRouter from './routes/userdata.js';
 import badgeRouter from './routes/badges.js';
 import feedbackRouter from './routes/feedback.js';
+import contestsRouter from './routes/contests.js';
 import { testConnection, syncDatabase } from './config/database.js';
 import { createAdminUser } from './seeders/createAdminUser.js';
 import { createBadges } from './seeders/createBadges.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 function buildJavaDriver(code) {
   // Remove any existing Main class if present (handles both single and multi-line)
@@ -92,6 +94,7 @@ function createApp() {
   app.use('/api/feedback', feedbackRouter);
 
   app.use('/api/problems', problemsRouter);
+  app.use('/api/contests', contestsRouter);
 
   // Mount learners-platform before generic /api route (more specific routes first)
   app.use('/api/learners-platform', learnersPlatformRouter);
@@ -201,6 +204,9 @@ function createApp() {
   app.use('/api', (req, res) => {
     res.status(404).json({ error: 'API route not found' });
   });
+
+  // Ensure thrown route/controller errors return JSON instead of HTML error pages.
+  app.use(errorHandler);
 
   if (process.env.NODE_ENV === 'production') {
     const distPath = path.join(__dirname, '../dist');

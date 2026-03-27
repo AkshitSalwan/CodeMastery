@@ -19,6 +19,7 @@ router.post('/', requireAuth, getOrCreateUser, interviewerOrAdmin, validators.cr
 router.post('/generate-test-cases', requireAuth, getOrCreateUser, interviewerOrAdmin, aiGenerationController.generateTestCases);
 router.post('/generate-hints', requireAuth, getOrCreateUser, interviewerOrAdmin, aiGenerationController.generateHints);
 router.post('/generate-solution', requireAuth, getOrCreateUser, interviewerOrAdmin, aiGenerationController.generateSolutionExplanation);
+router.post('/generate-starter-code', requireAuth, getOrCreateUser, interviewerOrAdmin, aiGenerationController.generateStarterCode);
 
 // User submissions
 router.get('/user/submissions', requireAuth, getOrCreateUser, problemController.getUserSubmissions);

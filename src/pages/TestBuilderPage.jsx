@@ -164,7 +164,7 @@ export function TestBuilderPage() {
     bumpAdminMetric('testcasesDesigned', questions.length);
 
     alert(`Test "${testSetup.testName}" created successfully with ${questions.length} questions!`);
-    navigate('/contests');
+    navigate('/interviewer');
   };
 
   const totalScore = calculateTotalScore();

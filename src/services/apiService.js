@@ -45,16 +45,36 @@ export const apiService = {
       headers
     });
 
+    const parseResponseBody = async () => {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          return await response.json();
+        } catch {
+          return null;
+        }
+      }
+
+      try {
+        const text = await response.text();
+        return text ? { error: text } : null;
+      } catch {
+        return null;
+      }
+    };
+
     if (!response.ok) {
       if (response.status === 401) {
         apiService.setToken(null);
         throw new Error('Unauthorized - please login again');
       }
-      const errorData = await response.json();
-      throw new Error(errorData.error || `API Error: ${response.statusText}`);
+      const errorData = await parseResponseBody();
+      const message = errorData?.error || errorData?.message || `API Error: ${response.status} ${response.statusText}`;
+      throw new Error(message);
     }
 
-    return response.json();
+    const data = await parseResponseBody();
+    return data ?? {};
   },
 
   // Questions API
@@ -94,6 +114,9 @@ export const apiService = {
     
     get: async (id) => 
       apiService.fetchWithAuth(`/contests/${id}`),
+
+    getMine: async () =>
+      apiService.fetchWithAuth('/contests/mine'),
     
     update: async (id, contest) => 
       apiService.fetchWithAuth(`/contests/${id}`, { 
@@ -102,7 +125,28 @@ export const apiService = {
       }),
     
     delete: async (id) => 
-      apiService.fetchWithAuth(`/contests/${id}`, { method: 'DELETE' })
+      apiService.fetchWithAuth(`/contests/${id}`, { method: 'DELETE' }),
+
+    register: async (id) =>
+      apiService.fetchWithAuth(`/contests/${id}/register`, { method: 'POST' }),
+
+    join: async (id) =>
+      apiService.fetchWithAuth(`/contests/${id}/join`, { method: 'POST' }),
+
+    leaderboard: async (id) =>
+      apiService.fetchWithAuth(`/contests/${id}/leaderboard`),
+
+    participants: async (id) =>
+      apiService.fetchWithAuth(`/contests/${id}/participants`),
+
+    submissions: async (contestId) =>
+      apiService.fetchWithAuth(`/contests/${contestId}/submissions`),
+
+    submitProblem: async (contestId, problemId, payload) =>
+      apiService.fetchWithAuth(`/contests/${contestId}/problems/${problemId}/submit`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
   },
 
   // Tests API
