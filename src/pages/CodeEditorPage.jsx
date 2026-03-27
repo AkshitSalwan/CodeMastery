@@ -287,8 +287,7 @@ export function CodeEditorPage() {
         body: JSON.stringify({
           language,
           code: trimmedCode,
-          stdin: '',
-          testCaseInput: activeTestCaseInput,
+          stdin: activeTestCaseInput,
         }),
       });
 
@@ -362,8 +361,7 @@ export function CodeEditorPage() {
         body: JSON.stringify({
           language,
           code: code.trim(),
-          stdin: '',
-          testCaseInput: customInput,
+          stdin: customInput,
         }),
       });
 

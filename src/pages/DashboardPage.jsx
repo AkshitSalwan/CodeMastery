@@ -121,7 +121,7 @@ const readJson = (storageKey, fallback) => {
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('auth-token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return token ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } : {};
 };
 
 export function DashboardPage() {
@@ -143,6 +143,16 @@ export function DashboardPage() {
 
     const loadAcceptedSubmissions = async () => {
       try {
+        // Check for auth token first
+        const token = localStorage.getItem('auth-token');
+        if (!token) {
+          if (!cancelled) {
+            setAcceptedSubmissions([]);
+            setSubmissionStatsLoaded(false);
+          }
+          return;
+        }
+
         const response = await fetch('/api/problems/user/submissions?verdict=accepted&limit=500', {
           headers: getAuthHeaders(),
         });

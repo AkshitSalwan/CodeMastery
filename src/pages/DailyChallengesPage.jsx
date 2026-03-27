@@ -24,6 +24,12 @@ export function DailyChallengesPage() {
   const [error, setError] = useState('');
 
   const fetchJson = async (url, options = {}) => {
+    // Check for token before making authenticated requests
+    const token = localStorage.getItem('auth-token');
+    if (!token) {
+      throw new Error('No token provided. Please log in first.');
+    }
+
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -43,6 +49,14 @@ export function DailyChallengesPage() {
   const loadDailyChallengeData = async () => {
     setLoading(true);
     setError('');
+
+    // Check authentication first
+    const token = localStorage.getItem('auth-token');
+    if (!token) {
+      setError('You must be logged in to view daily challenges.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const [today, streak, historyData, leaderboardData] = await Promise.all([

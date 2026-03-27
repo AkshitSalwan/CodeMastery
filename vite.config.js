@@ -23,8 +23,7 @@ export default defineConfig(({ mode }) => {
       hmr: {
         protocol: 'ws',
         host: 'localhost',
-        port: 3000,
-        clientPort: 3000,
+        port: process.env.PORT_HMR ? parseInt(process.env.PORT_HMR) : 3000,
       },
       proxy: {
         '/api': {

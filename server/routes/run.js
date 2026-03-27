@@ -3,9 +3,24 @@ const axios = require("axios");
 
 const router = express.Router();
 
-// Judge0 local API
-const JUDGE0_URL =
-  "http://localhost:2358/submissions?base64_encoded=false&wait=true";
+// Judge0 API - Read from env variable
+const JUDGE0_BASE_URL = (process.env.JUDGE0_BASE_URL || "https://ce.judge0.com").replace(/\/$/, "");
+const JUDGE0_URL = `${JUDGE0_BASE_URL}/submissions?base64_encoded=true&wait=true`;
+
+// Helper function to encode strings to base64
+function encodeBase64(str) {
+  return Buffer.from(str || '').toString('base64');
+}
+
+// Helper function to decode strings from base64  
+function decodeBase64(str) {
+  if (!str) return '';
+  try {
+    return Buffer.from(str, 'base64').toString('utf8');
+  } catch {
+    return str;
+  }
+}
 
 // Judge0 Language IDs
 const languageMap = {
@@ -54,37 +69,45 @@ router.post("/", async (req, res) => {
       }
 
       const response = await axios.post(JUDGE0_URL, {
-        source_code: sourceCode,
+        source_code: encodeBase64(sourceCode),
         language_id,
-        stdin: stdin,
+        stdin: encodeBase64(stdin || ''),
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       const data = response.data;
-      console.log(`Judge0 response:`, data);
+      console.log(`Judge0 response:`, JSON.stringify(data, null, 2));
 
       const status = data.status?.description || 'Unknown';
       const time = data.time != null ? `${data.time}s` : 'N/A';
       const memory = data.memory != null ? `${data.memory} KB` : 'N/A';
 
-      if (data.compile_output) {
+      // Decode base64 response
+      const compiledOutput = decodeBase64(data.compile_output);
+      const stdErr = decodeBase64(data.stderr);
+      const stdOut = decodeBase64(data.stdout);
+
+      if (compiledOutput) {
         return res.json({
           status: "Compilation Error",
-          compile_output: data.compile_output,
+          compile_output: compiledOutput,
           time,
           memory,
         });
-      } else if (data.stderr) {
+      } else if (stdErr) {
         return res.json({
           status: "Runtime Error",
-          stderr: data.stderr,
+          stderr: stdErr,
           time,
           memory,
         });
       } else {
-        const stdout = data.stdout || '';
         return res.json({
           status: "Accepted",
-          stdout,
+          stdout: stdOut || '',
           time,
           memory,
         });
@@ -122,18 +145,23 @@ router.post("/", async (req, res) => {
       }
 
       const payload = {
-        source_code: sourceCode,
+        source_code: encodeBase64(sourceCode),
         language_id,
-        stdin: tc.input,
+        stdin: encodeBase64(tc.input || ''),
       };
 
-      const response = await axios.post(JUDGE0_URL, payload);
+      const response = await axios.post(JUDGE0_URL, payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
       const data = response.data;
 
-      console.log(`Judge0 Response Test ${i + 1}:`, data);
+      console.log(`Judge0 Response Test ${i + 1}:`, JSON.stringify(data, null, 2));
 
-      const actual = (data.stdout || "").trim();
+      const stdOut = decodeBase64(data.stdout || '');
+      const actual = stdOut.trim();
       const expected = (tc.expected || "").trim();
 
       const passed = compareOutput(actual, expected);
@@ -148,7 +176,7 @@ router.post("/", async (req, res) => {
         expected,
         actual,
         passed,
-        error: data.stderr || data.compile_output || null,
+        error: decodeBase64(data.stderr) || decodeBase64(data.compile_output) || null,
         runtime: data.time,
         memory: data.memory,
       });
@@ -171,11 +199,14 @@ router.post("/", async (req, res) => {
     });
   } catch (error) {
     console.error("Run Error:", error.message);
+    console.error("Full error:", error);
 
+    // Return error in a format the frontend understands
     res.status(500).json({
       status: "Runtime Error",
-      error: "Execution failed",
-      details: error.message,
+      stderr: `Judge0 Connection Error: ${error.message}\n\nMake sure Judge0 is running on http://localhost:2358`,
+      compile_output: null,
+      stdout: null,
     });
   }
 });

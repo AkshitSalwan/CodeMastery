@@ -2,7 +2,6 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ProgressChart } from '../../components/dashboard/progress-chart';
 import { useAuth } from '../context/AuthContext';
-import { ACHIEVEMENTS } from '../data/achievements';
 
 // Dummy stats data for demonstration
 const userStats = {
@@ -21,13 +20,48 @@ const userStats = {
 export default function UserProfilePage() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
+  const [badges, setBadges] = React.useState([]);
+
+  // Fetch user's earned badges from database
+  React.useEffect(() => {
+    const fetchUserBadges = async () => {
+      try {
+        const token = localStorage.getItem('auth-token');
+        if (!token) {
+          setBadges([]);
+          return;
+        }
+
+        const response = await fetch('/api/badges/user', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setBadges(data.badges || []);
+        } else {
+          console.warn('Failed to fetch user badges');
+          setBadges([]);
+        }
+      } catch (err) {
+        console.error('Error fetching badges:', err);
+        setBadges([]);
+      }
+    };
+
+    fetchUserBadges();
+  }, []);
 
   if (!user) {
     return <div className="p-8 text-center">Loading profile...</div>;
   }
 
   const skills = ['JavaScript', 'React', 'Algorithms', 'Data Structures'];
-  const badges = ACHIEVEMENTS.filter(a => a.unlocked);
 
   const [editing, setEditing] = React.useState(false);
   const [profileForm, setProfileForm] = React.useState({
@@ -90,8 +124,8 @@ export default function UserProfilePage() {
           {badges.length > 0 && (
             <div className="flex gap-1 mb-2">
               {badges.map(b => (
-                <span key={b.id} title={b.name} className="text-xl">
-                  {b.icon}
+                <span key={b.id} title={b.badge?.name} className="text-xl">
+                  {b.badge?.icon || ''}
                 </span>
               ))}
             </div>
