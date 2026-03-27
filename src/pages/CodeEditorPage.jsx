@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { problems } from '../data/problems';
@@ -10,6 +10,7 @@ import { DiscussionPanel } from '../components/DiscussionPanel';
 import { mockTestCases } from '../../lib/mock-data/test-cases';
 import { useAuth } from '../context/AuthContext';
 import { compareExecutionOutput } from '../utils/problemExecution';
+import apiService from '../services/apiService';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
@@ -26,7 +27,10 @@ const getAuthHeaders = () => {
 export function CodeEditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const contestId = searchParams.get('contestId');
+  const contestProblemId = searchParams.get('problemId');
   
   // Check if user is authenticated
   const isAuthenticated = user || localStorage.getItem('auth-token');
@@ -531,34 +535,108 @@ export function CodeEditorPage() {
 
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || '';
-      const response = await fetch(`${API_BASE}/api/problems/submit`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          problem_id: problem?.id,
-          code: code.trim(),
-          language,
-        }),
-      });
+      let submission = null;
+      let testcaseScore = null;
 
-      if (!response.ok) {
-        const errText = await response.text();
-        let errorMessage = `Error from backend (${response.status}):\n${errText}`;
-
-        if (response.status === 401) {
-          const token = localStorage.getItem('auth-token');
-          errorMessage = token
-            ? `Authentication failed. Your session may have expired. Please log in again.\n\nError: ${errText}`
-            : `Authentication required. Please log in to submit code.\n\nError: ${errText}`;
+      if (contestId) {
+        const targetProblemId = contestProblemId || problem?.id;
+        if (!targetProblemId) {
+          throw new Error('Contest problem is not available for submission.');
         }
 
-        setSubmissionStatus('failed');
-        setOutput(errorMessage);
-        return;
+        // Ensure learner has commenced the contest before submission.
+        try {
+          await apiService.contests.join(contestId);
+        } catch (joinError) {
+          const joinMessage = joinError?.message || 'Unable to join contest.';
+          if (joinMessage.includes('not started')) {
+            throw new Error('Contest has not started yet. Please wait for commencement time.');
+          }
+          if (joinMessage.includes('ended')) {
+            throw new Error('Contest has already ended. Submission is closed.');
+          }
+          if (!joinMessage.includes('Already')) {
+            throw joinError;
+          }
+        }
+
+        let contestResult;
+        try {
+          contestResult = await apiService.contests.submitProblem(
+            contestId,
+            targetProblemId,
+            {
+              code: code.trim(),
+              language,
+            }
+          );
+        } catch (contestSubmitError) {
+          const contestMessage = contestSubmitError?.message || '';
+          if (contestMessage.includes('Not participating')) {
+            // Retry once after forced join in case user opened editor directly.
+            await apiService.contests.join(contestId);
+            contestResult = await apiService.contests.submitProblem(
+              contestId,
+              targetProblemId,
+              {
+                code: code.trim(),
+                language,
+              }
+            );
+          } else if (contestMessage.includes('Problem already solved')) {
+            const submissionsData = await apiService.contests.submissions(contestId);
+            const submissions = submissionsData?.submissions || [];
+            const solvedSubmission = submissions.find(
+              (entry) =>
+                String(entry.problem_id || entry.problem?.id) === String(targetProblemId) &&
+                entry.is_accepted === true
+            );
+
+            setSubmissionStatus('accepted');
+            setOutput(
+              `Already solved in this contest.\n\n` +
+              `Further submissions are blocked for accepted problems.\n` +
+              `Score remains ${solvedSubmission?.score ?? 'as recorded on leaderboard'}.`
+            );
+            return;
+          } else {
+            throw contestSubmitError;
+          }
+        }
+
+        submission = contestResult?.submission || {};
+        testcaseScore = contestResult?.testcaseScore;
+      } else {
+        const response = await fetch(`${API_BASE}/api/problems/submit`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            problem_id: problem?.id,
+            code: code.trim(),
+            language,
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          let errorMessage = `Error from backend (${response.status}):\n${errText}`;
+
+          if (response.status === 401) {
+            const token = localStorage.getItem('auth-token');
+            errorMessage = token
+              ? `Authentication failed. Your session may have expired. Please log in again.\n\nError: ${errText}`
+              : `Authentication required. Please log in to submit code.\n\nError: ${errText}`;
+          }
+
+          setSubmissionStatus('failed');
+          setOutput(errorMessage);
+          return;
+        }
+
+        const result = await response.json();
+        submission = result.submission || {};
       }
 
-      const result = await response.json();
-      const submission = result.submission || {};
       const verdict = submission.verdict || 'wrong_answer';
       const visibleResults = (submission.test_results || []).map((testResult, index) => ({
         testNum: index + 1,
@@ -577,7 +655,8 @@ export function CodeEditorPage() {
       setSubmissionStatus(accepted ? 'accepted' : 'failed');
 
       if (accepted) {
-        setOutput(`Accepted\n\nPassed ${submission.passed_tests}/${submission.total_tests} test cases`);
+        const scoreLine = contestId ? `\nContest Score: ${testcaseScore ?? 0}` : '';
+        setOutput(`Accepted\n\nPassed ${submission.passed_tests}/${submission.total_tests} test cases${scoreLine}`);
         if (problem) {
           markProblemSolved(problem);
         }
@@ -592,7 +671,9 @@ export function CodeEditorPage() {
           : 'No visible test case details returned.';
 
         setOutput(
-          `${String(verdict).replace(/_/g, ' ')}\n\nPassed ${submission.passed_tests}/${submission.total_tests} test cases\n\n${details}`
+          `${String(verdict).replace(/_/g, ' ')}\n\nPassed ${submission.passed_tests}/${submission.total_tests} test cases${
+            contestId ? `\nContest Score: ${testcaseScore ?? 0}` : ''
+          }\n\n${details}`
         );
       }
 
@@ -605,9 +686,11 @@ export function CodeEditorPage() {
         console.warn('Failed to refresh DPP progress after submission:', progressError);
       }
     } catch (error) {
-      console.error('Submission error:', error);
+      if (!String(error?.message || '').includes('Problem already solved')) {
+        console.error('Submission error:', error);
+      }
       setSubmissionStatus('failed');
-      setOutput('Unexpected error while submitting code.');
+      setOutput(error?.message || 'Unexpected error while submitting code.');
     } finally {
       setIsRunning(false);
     }
@@ -768,7 +851,7 @@ export function CodeEditorPage() {
               <div className="h-full flex flex-col gap-4 p-4">
                 {/* Editor Header */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center flex-wrap">
                     <select
                       value={language}
                       onChange={handleLanguageChange}
@@ -788,6 +871,11 @@ export function CodeEditorPage() {
                         <option key={t.value} value={t.value}>{t.label}</option>
                       ))}
                     </select>
+                    {contestId ? (
+                      <span className="px-2 py-1 rounded-md bg-secondary/40 text-xs font-mono text-muted-foreground">
+                        #{contestId}
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="flex gap-2">
@@ -805,7 +893,7 @@ export function CodeEditorPage() {
                     </Button>
                     <Button size="sm" onClick={handleSubmit} disabled={isRunning}>
                       <Save className="h-4 w-4 mr-1" />
-                      Submit
+                      {contestId ? 'Submit to Contest' : 'Submit'}
                     </Button>
                   </div>
                 </div>

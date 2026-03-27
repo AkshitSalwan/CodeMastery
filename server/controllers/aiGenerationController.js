@@ -109,8 +109,56 @@ export const generateSolutionExplanation = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * Generate starter code templates
+ */
+export const generateStarterCode = asyncHandler(async (req, res) => {
+  const {
+    title,
+    description,
+    difficulty,
+    constraints,
+    examples,
+    test_cases,
+    languages,
+  } = req.body;
+
+  if (!title || !description) {
+    return res.status(400).json({
+      error: 'Title and description are required'
+    });
+  }
+
+  console.log(`🤖 Generating starter code for: ${title}`);
+
+  try {
+    const starterCode = await geminiService.generateStarterCode({
+      title,
+      description,
+      difficulty: difficulty || 'Medium',
+      constraints: constraints || [],
+      examples: examples || [],
+      test_cases: test_cases || [],
+      languages: Array.isArray(languages) && languages.length > 0 ? languages : ['javascript', 'python', 'java', 'cpp']
+    });
+
+    res.json({
+      success: true,
+      starter_code: starterCode || {},
+      message: `Generated starter code for ${Object.keys(starterCode || {}).length} language(s)`
+    });
+  } catch (error) {
+    console.error('Error generating starter code:', error);
+    res.status(500).json({
+      error: 'Failed to generate starter code',
+      message: error.message
+    });
+  }
+});
+
 export default {
   generateTestCases,
   generateHints,
-  generateSolutionExplanation
+  generateSolutionExplanation,
+  generateStarterCode
 };

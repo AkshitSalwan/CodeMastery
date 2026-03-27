@@ -15,7 +15,11 @@ const categories = [
   'Greedy', 'Backtracking'
 ];
 
-export default function AdminAddQuestionPage() {
+export default function AdminAddQuestionPage({
+  pageTitle = 'Create New Question',
+  pageDescription = 'Add new problems with AI-generated test cases and hints',
+  redirectTo = '/admin',
+}) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -40,6 +44,8 @@ export default function AdminAddQuestionPage() {
   // UI state
   const [loading, setLoading] = useState(false);
   const [generatingTests, setGeneratingTests] = useState(false);
+  const [generatingHints, setGeneratingHints] = useState(false);
+  const [generatingStarterCode, setGeneratingStarterCode] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [testCases, setTestCases] = useState([]);
@@ -137,6 +143,18 @@ export default function AdminAddQuestionPage() {
     }));
   };
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth-token');
+    if (!token) {
+      throw new Error('Authentication required. Please log in again.');
+    }
+
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
   const generateAITestCases = async () => {
     if (!formData.title || !formData.description) {
       setError('Please fill in title and description first');
@@ -145,40 +163,33 @@ export default function AdminAddQuestionPage() {
 
     setGeneratingTests(true);
     setError('');
+    setSuccess('');
 
     try {
-      // Mock AI-generated test cases (simulates Gemini API response)
-      const mockTestCases = [
-        {
-          input: JSON.stringify(['example', 'input', '1']),
-          output: JSON.stringify('expected output 1'),
-          explanation: 'Basic test case'
-        },
-        {
-          input: JSON.stringify(['edge', 'case']),
-          output: JSON.stringify('expected output 2'),
-          explanation: 'Edge case test'
-        }
-      ];
+      const response = await fetch('/api/problems/generate-test-cases', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          difficulty: formData.difficulty,
+          constraints: formData.constraints,
+          examples: formData.examples,
+        }),
+      });
 
-      const mockHiddenTests = [
-        {
-          input: JSON.stringify(['hidden', 'test', '1']),
-          output: JSON.stringify('hidden output 1')
-        },
-        {
-          input: JSON.stringify(['hidden', 'test', '2']),
-          output: JSON.stringify('hidden output 2')
-        },
-        {
-          input: JSON.stringify(['hidden', 'test', '3']),
-          output: JSON.stringify('hidden output 3')
-        }
-      ];
+      const data = await response.json();
 
-      setTestCases(mockTestCases);
-      setHiddenTestCases(mockHiddenTests);
-      setSuccess(`Generated ${mockTestCases.length} visible and ${mockHiddenTests.length} hidden test cases!`);
+      if (!response.ok) {
+        throw new Error(data?.error || data?.message || 'Failed to generate test cases');
+      }
+
+      const visibleCases = data.test_cases || data.visible_test_cases || [];
+      const hiddenCases = data.hidden_test_cases || [];
+
+      setTestCases(visibleCases);
+      setHiddenTestCases(hiddenCases);
+      setSuccess(data.message || `Generated ${visibleCases.length} visible and ${hiddenCases.length} hidden test cases!`);
     } catch (err) {
       setError(`Error generating test cases: ${err.message}`);
     } finally {
@@ -192,25 +203,83 @@ export default function AdminAddQuestionPage() {
       return;
     }
 
-    setLoading(true);
+    setGeneratingHints(true);
     setError('');
+    setSuccess('');
 
     try {
-      // Mock AI-generated hints (simulates Gemini API response)
-      const mockHints = [
-        'Understand the problem statement carefully and identify the key requirements.',
-        'Think about the input constraints and edge cases that need to be handled.',
-        'Consider using appropriate data structures like arrays, hashmaps, or stacks.',
-        'Write a solution that passes all test cases with optimal time and space complexity.',
-        'Test your solution against the provided examples before submitting.'
-      ];
+      const response = await fetch('/api/problems/generate-hints', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          difficulty: formData.difficulty,
+        }),
+      });
 
-      setFormData(prev => ({ ...prev, hints: mockHints }));
-      setSuccess(`Generated ${mockHints.length} hints!`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || data?.message || 'Failed to generate hints');
+      }
+
+      const hints = data.hints || [];
+      setFormData(prev => ({ ...prev, hints }));
+      setSuccess(data.message || `Generated ${hints.length} hints!`);
     } catch (err) {
       setError(`Error generating hints: ${err.message}`);
     } finally {
-      setLoading(false);
+      setGeneratingHints(false);
+    }
+  };
+
+  const generateAIStarterCode = async () => {
+    if (!formData.title || !formData.description) {
+      setError('Please fill in title and description first');
+      return;
+    }
+
+    setGeneratingStarterCode(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch('/api/problems/generate-starter-code', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          difficulty: formData.difficulty,
+          constraints: formData.constraints,
+          examples: formData.examples,
+          test_cases: testCases,
+          languages,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || data?.message || 'Failed to generate starter code');
+      }
+
+      const starterCode = data.starter_code || {};
+      setFormData(prev => ({
+        ...prev,
+        starter_code: {
+          ...prev.starter_code,
+          ...starterCode,
+        },
+      }));
+
+      const count = Object.keys(starterCode).length;
+      setSuccess(data.message || `Generated starter code for ${count} language(s)!`);
+    } catch (err) {
+      setError(`Error generating starter code: ${err.message}`);
+    } finally {
+      setGeneratingStarterCode(false);
     }
   };
 
@@ -254,28 +323,6 @@ export default function AdminAddQuestionPage() {
         throw new Error('Slug must be at least 5 characters. Title needs more words.');
       }
 
-      console.log('🔐 Authenticating with backend...');
-      // Get JWT token from backend (for authenticated API calls)
-      const loginRes = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: 'admin@codemastery.com',
-          password: 'admin123456'
-        })
-      });
-
-      console.log('Login response status:', loginRes.status);
-
-      if (!loginRes.ok) {
-        const errText = await loginRes.text();
-        console.error('Login error response:', errText);
-        throw new Error(`Authentication failed (${loginRes.status}): ${errText || 'Unknown error'}`);
-      }
-
-      const { token } = await loginRes.json();
-      console.log('✓ Authentication successful, token received');
-
       // Create problem object for API
       const problemPayload = {
         title: formData.title,
@@ -300,10 +347,7 @@ export default function AdminAddQuestionPage() {
       // Send to backend API
       const createRes = await fetch('/api/problems', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(problemPayload)
       });
 
@@ -340,7 +384,7 @@ export default function AdminAddQuestionPage() {
         setTestCases([]);
         setHiddenTestCases([]);
         setActiveTab('basic');
-        navigate('/admin');
+        navigate(redirectTo);
       }, 2000);
     } catch (err) {
       console.error('❌ Error:', err.message);
@@ -358,10 +402,10 @@ export default function AdminAddQuestionPage() {
         <div>
           <h1 className="text-4xl font-bold text-foreground flex items-center gap-2">
             <Sparkles className="w-8 h-8 text-amber-500" />
-            Create New Question
+            {pageTitle}
           </h1>
           <p className="text-muted-foreground mt-2">
-            Add new problems with AI-generated test cases and hints
+            {pageDescription}
           </p>
         </div>
       </div>
@@ -686,11 +730,11 @@ export default function AdminAddQuestionPage() {
                   <Button
                     type="button"
                     onClick={generateAIHints}
-                    disabled={loading || !formData.title || !formData.description}
+                    disabled={generatingHints || !formData.title || !formData.description}
                     variant="outline"
                     className="flex items-center gap-2"
                   >
-                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {generatingHints && <Loader2 className="w-4 h-4 animate-spin" />}
                     Generate Hints
                   </Button>
                 </div>
@@ -764,6 +808,18 @@ export default function AdminAddQuestionPage() {
                 {/* Starter Code */}
                 <div>
                   <h3 className="font-medium text-foreground mb-3">Starter Code</h3>
+                  <div className="mb-3">
+                    <Button
+                      type="button"
+                      onClick={generateAIStarterCode}
+                      disabled={generatingStarterCode || !formData.title || !formData.description}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      {generatingStarterCode && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Generate Starter Code with AI
+                    </Button>
+                  </div>
                   <div className="flex gap-2 mb-3">
                     {languages.map(lang => (
                       <Button
@@ -815,7 +871,7 @@ export default function AdminAddQuestionPage() {
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             Create Question
           </Button>
-          <Button type="button" variant="outline" onClick={() => navigate('/admin')}>
+          <Button type="button" variant="outline" onClick={() => navigate(redirectTo)}>
             Cancel
           </Button>
         </div>

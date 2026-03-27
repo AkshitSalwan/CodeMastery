@@ -100,7 +100,7 @@ Return ONLY valid JSON, nothing else.`;
 
   try {
     // Try to parse the generated JSON
-    const parsed = JSON.parse(generatedText);
+    const parsed = parseJsonLikeResponse(generatedText);
     
     // Validate the structure
     if (!Array.isArray(parsed.visible_test_cases) || !Array.isArray(parsed.hidden_test_cases)) {
@@ -123,53 +123,154 @@ Return ONLY valid JSON, nothing else.`;
  * @returns {object} - Basic test cases
  */
 const generateFallbackTestCases = (problemData) => {
-  const { difficulty } = problemData;
-  
-  // Generate basic test cases based on difficulty
-  const baseTestCases = [
+  const {
+    title = '',
+    description = '',
+    difficulty = 'Medium',
+    examples = [],
+  } = problemData;
+
+  const exampleBased = examples
+    .filter((ex) => ex && typeof ex.input === 'string' && typeof ex.output === 'string')
+    .slice(0, 3)
+    .map((ex, idx) => ({
+      input: ex.input,
+      output: ex.output,
+      explanation: ex.explanation || `Example-derived test case ${idx + 1}`,
+    }));
+
+  if (exampleBased.length > 0) {
+    return {
+      test_cases: exampleBased,
+      hidden_test_cases: buildHiddenFromVisible(exampleBased, difficulty),
+    };
+  }
+
+  const searchableText = `${title} ${description}`.toLowerCase();
+  if (isSortedArraySearchProblem(searchableText)) {
+    return buildSortedArraySearchCases(difficulty);
+  }
+
+  return buildContextualGenericCases({ title, description, difficulty });
+};
+
+const parseJsonLikeResponse = (text) => {
+  if (!text || typeof text !== 'string') {
+    throw new Error('Empty AI response');
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Try to extract JSON from markdown fences or mixed content
+    const fenceMatch = text.match(/```json\s*([\s\S]*?)```/i) || text.match(/```\s*([\s\S]*?)```/i);
+    if (fenceMatch?.[1]) {
+      return JSON.parse(fenceMatch[1].trim());
+    }
+
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      return JSON.parse(text.slice(firstBrace, lastBrace + 1));
+    }
+
+    throw new Error('No parseable JSON found');
+  }
+};
+
+const isSortedArraySearchProblem = (text) => {
+  return text.includes('search') && text.includes('array') && text.includes('sorted');
+};
+
+const buildSortedArraySearchCases = (difficulty) => {
+  const visible = [
     {
-      input: 'sample input 1',
-      output: 'expected output 1',
-      explanation: 'Basic test case',
+      input: '5\n1 3 5 7 9\n7',
+      output: '3',
+      explanation: 'Target 7 is present at 0-based index 3.',
     },
     {
-      input: 'sample input 2',
-      output: 'expected output 2',
-      explanation: 'Second test case',
+      input: '6\n2 4 6 8 10 12\n5',
+      output: '-1',
+      explanation: 'Target 5 does not exist in the sorted array.',
     },
   ];
 
   if (difficulty === 'Medium' || difficulty === 'Hard') {
-    baseTestCases.push({
-      input: 'edge case input',
-      output: 'edge case output',
-      explanation: 'Edge case test',
+    visible.push({
+      input: '1\n42\n42',
+      output: '0',
+      explanation: 'Single-element array where the target is found.',
     });
   }
+
+  const hidden = [
+    { input: '1\n42\n7', output: '-1' },
+    { input: '8\n-10 -5 -2 0 3 4 8 12\n-10', output: '0' },
+    { input: '8\n-10 -5 -2 0 3 4 8 12\n12', output: '7' },
+    { input: '7\n1 1 2 2 3 3 4\n2', output: '2' },
+    { input: '5\n10 20 30 40 50\n35', output: '-1' },
+  ];
 
   if (difficulty === 'Hard') {
-    baseTestCases.push({
-      input: 'complex input',
-      output: 'complex output',
-      explanation: 'Complex test case',
-    });
-  }
-
-  // Hidden test cases - generated based on difficulty
-  const hiddenTestCases = [];
-  const hiddenCount = difficulty === 'Easy' ? 5 : difficulty === 'Medium' ? 8 : 10;
-  
-  for (let i = 0; i < hiddenCount; i++) {
-    hiddenTestCases.push({
-      input: `hidden test input ${i + 1}`,
-      output: `hidden test output ${i + 1}`,
-    });
+    hidden.push(
+      { input: '10\n1 2 3 4 5 6 7 8 9 10\n10', output: '9' },
+      { input: '10\n1 2 3 4 5 6 7 8 9 10\n1', output: '0' }
+    );
   }
 
   return {
-    test_cases: baseTestCases,
-    hidden_test_cases: hiddenTestCases,
+    test_cases: visible,
+    hidden_test_cases: hidden,
   };
+};
+
+const buildContextualGenericCases = ({ title, description, difficulty }) => {
+  const visible = [
+    {
+      input: '3\n1 2 3',
+      output: '6',
+      explanation: `Baseline sanity case for ${title || 'the problem'}.`,
+    },
+    {
+      input: '5\n0 0 0 0 0',
+      output: '0',
+      explanation: 'All-zero edge case.',
+    },
+  ];
+
+  if (difficulty === 'Medium' || difficulty === 'Hard') {
+    visible.push({
+      input: '4\n-5 2 -1 6',
+      output: '2',
+      explanation: 'Mixed-sign values to test robustness.',
+    });
+  }
+
+  const hidden = buildHiddenFromVisible(visible, difficulty);
+
+  return {
+    test_cases: visible,
+    hidden_test_cases: hidden,
+  };
+};
+
+const buildHiddenFromVisible = (visible, difficulty) => {
+  const hidden = visible.map((tc) => ({ input: tc.input, output: tc.output })).slice(0, 2);
+  hidden.push(
+    { input: '2\n1000000 -1000000', output: '0' },
+    { input: '3\n1 1 1', output: '3' },
+    { input: '4\n9 8 7 6', output: '30' }
+  );
+
+  if (difficulty === 'Hard') {
+    hidden.push(
+      { input: '6\n1 3 5 7 9 11', output: '36' },
+      { input: '6\n-1 -2 -3 -4 -5 -6', output: '-21' }
+    );
+  }
+
+  return hidden;
 };
 
 /**
@@ -287,6 +388,158 @@ Be concise but thorough. Assume readers have basic coding knowledge.`;
 };
 
 /**
+ * Explain a piece of code in plain language.
+ * @param {string} code - User code
+ * @param {string} language - Programming language
+ * @returns {Promise<{success: boolean, text: string}>}
+ */
+export const explainCode = async (code, language) => {
+  const prompt = `You are a senior software engineer mentoring a learner.
+
+Language: ${language || 'unknown'}
+
+Code:
+\`\`\`
+${code}
+\`\`\`
+
+Explain this code clearly in markdown with:
+1. What the code does
+2. How it works step by step
+3. Important functions or logic blocks
+4. Time and space complexity if it can be inferred
+5. Any risks, edge cases, or improvements
+
+Keep the explanation concise but useful.`;
+
+  const generatedText = await callGemini(prompt, 'text/plain');
+
+  if (!generatedText) {
+    return {
+      success: true,
+      text: generateFallbackCodeExplanation(language),
+    };
+  }
+
+  return {
+    success: true,
+    text: generatedText,
+  };
+};
+
+/**
+ * Generate starter code templates for supported languages.
+ * @param {object} problemData - Problem details and test case context
+ * @returns {Promise<object>} - starter_code object keyed by language
+ */
+export const generateStarterCode = async (problemData) => {
+  const {
+    title,
+    description,
+    difficulty,
+    constraints = [],
+    examples = [],
+    test_cases = [],
+    languages = ['javascript', 'python', 'java', 'cpp'],
+  } = problemData;
+
+  const prompt = `You are generating interview-friendly starter code templates.
+
+Problem Title: ${title}
+Problem Description: ${description}
+Difficulty: ${difficulty || 'Medium'}
+Constraints: ${JSON.stringify(constraints)}
+Examples: ${JSON.stringify(examples)}
+Visible Test Cases: ${JSON.stringify(test_cases)}
+Languages: ${JSON.stringify(languages)}
+
+Generate ONLY valid JSON in this exact shape:
+{
+  "starter_code": {
+    "javascript": "...",
+    "python": "...",
+    "java": "...",
+    "cpp": "..."
+  }
+}
+
+Requirements:
+1. Return starter code only for requested languages.
+2. Each template must include a function signature and TODO comments.
+3. Keep templates runnable/compilable skeletons where possible.
+4. Do NOT include complete solution logic.
+5. Keep language syntax correct and concise.`;
+
+  const generatedText = await callGemini(prompt);
+  if (!generatedText) {
+    return generateFallbackStarterCode(languages);
+  }
+
+  try {
+    const parsed = JSON.parse(generatedText);
+    const generated = parsed?.starter_code;
+    if (!generated || typeof generated !== 'object') {
+      throw new Error('Invalid starter_code response');
+    }
+
+    const filtered = {};
+    for (const lang of languages) {
+      if (typeof generated[lang] === 'string' && generated[lang].trim()) {
+        filtered[lang] = generated[lang];
+      }
+    }
+
+    if (Object.keys(filtered).length === 0) {
+      return generateFallbackStarterCode(languages);
+    }
+
+    return filtered;
+  } catch (error) {
+    console.error('Failed to parse starter code response:', error.message);
+    return generateFallbackStarterCode(languages);
+  }
+};
+
+const generateFallbackStarterCode = (languages = ['javascript', 'python', 'java', 'cpp']) => {
+  const templates = {
+    javascript: `function solve(input) {
+  // TODO: parse input
+  // TODO: implement logic
+  return '';
+}
+
+module.exports = { solve };`,
+    python: `def solve(input_data: str) -> str:
+    # TODO: parse input_data
+    # TODO: implement logic
+    return ""`,
+    java: `class Solution {
+    public static String solve(String input) {
+        // TODO: parse input
+        // TODO: implement logic
+        return "";
+    }
+}`,
+    cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+string solve(const string& input) {
+    // TODO: parse input
+    // TODO: implement logic
+    return "";
+}`,
+  };
+
+  const starter = {};
+  for (const lang of languages) {
+    if (templates[lang]) {
+      starter[lang] = templates[lang];
+    }
+  }
+  return starter;
+};
+
+/**
  * Fallback solution explanation
  * @param {string} difficulty - Problem difficulty
  * @returns {string} - Basic explanation template
@@ -315,6 +568,24 @@ This problem requires careful analysis of the problem constraints and choosing a
 
 ## When to Use
 This approach is best when the constraints allow it and the problem requirements match.`;
+};
+
+const generateFallbackCodeExplanation = (language) => {
+  return `# Code Explanation
+
+## What It Does
+This ${language || 'program'} processes the given input and produces output according to its implemented logic.
+
+## How It Works
+1. It defines the main logic in the submitted code.
+2. It reads or receives input values.
+3. It performs the required computation step by step.
+4. It returns or prints the final result.
+
+## Notes
+- Review the control flow and data transformations carefully.
+- Check edge cases, especially empty input, invalid values, and boundary conditions.
+- If performance matters, inspect loops and nested operations to estimate time complexity.`;
 };
 
 /**
@@ -356,6 +627,8 @@ export default {
   generateTestCases,
   generateHints,
   generateSolutionExplanation,
+  explainCode,
+  generateStarterCode,
   generateCompleteProblemSpec,
   callGemini,
 };
