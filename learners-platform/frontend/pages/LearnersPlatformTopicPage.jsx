@@ -16,6 +16,7 @@ import { Button } from '../../../src/components/Button.jsx';
 import { useAuth } from '../../../src/context/AuthContext.jsx';
 import { problems as allProblems } from '../../../src/data/problems.js';
 import {
+  getLearnersPlatformTopicAssessmentFeedback,
   getLearnersPlatformTopicAssessment,
   getLearnersPlatformTopic,
   getLearnersPlatformTopicVideos,
@@ -53,23 +54,64 @@ const difficultyStyles = {
 const secondaryLinkStyles =
   'inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary';
 
+const normalizeText = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ');
+
 function getRecommendedProblems(topic) {
   if (!topic) {
     return [];
   }
 
+  const explicitIds = topic.recommendedProblemIds || [];
   const byId = (topic.recommendedProblemIds || [])
     .map((id) => allProblems.find((problem) => problem.id === id))
     .filter(Boolean);
 
-  const knownIds = new Set(byId.map((problem) => problem.id));
-  const byCategory = allProblems.filter(
-    (problem) =>
-      !knownIds.has(problem.id) &&
-      problem.category.some((category) => (topic.problemCategories || []).includes(category))
+  if (explicitIds.length > 0) {
+    return byId.slice(0, 6);
+  }
+
+  const topicKeywords = new Set(
+    [
+      topic.title,
+      topic.category,
+      ...(topic.tags || []),
+      ...(topic.problemCategories || []),
+    ]
+      .flatMap((entry) => normalizeText(entry).split(' '))
+      .filter((entry) => entry.length > 2)
   );
 
-  return [...byId, ...byCategory].slice(0, 6);
+  const byRelevance = allProblems
+    .map((problem) => {
+      const problemKeywords = new Set(
+        [
+          problem.title,
+          problem.description,
+          ...(problem.category || []),
+        ]
+          .flatMap((entry) => normalizeText(entry).split(' '))
+          .filter((entry) => entry.length > 2)
+      );
+
+      const keywordHits = [...topicKeywords].filter((keyword) => problemKeywords.has(keyword)).length;
+      const categoryHits = (problem.category || []).filter((category) =>
+        (topic.problemCategories || []).includes(category)
+      ).length;
+
+      return {
+        problem,
+        score: keywordHits + categoryHits * 2,
+      };
+    })
+    .filter((entry) => entry.score >= 2)
+    .sort((left, right) => right.score - left.score)
+    .map((entry) => entry.problem);
+
+  return byRelevance.slice(0, 6);
 }
 
 const LearnersPlatformTopicPage = ({ apiBaseUrl = '/api/learners-platform' }) => {
@@ -89,6 +131,11 @@ const LearnersPlatformTopicPage = ({ apiBaseUrl = '/api/learners-platform' }) =>
   const [assessmentLoaded, setAssessmentLoaded] = useState(false);
   const [assessmentMessage, setAssessmentMessage] = useState('');
   const [assessmentCompleted, setAssessmentCompleted] = useState(false);
+  const [mcqAnswers, setMcqAnswers] = useState({});
+  const [interviewAnswers, setInterviewAnswers] = useState({});
+  const [feedback, setFeedback] = useState(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
 
   useEffect(() => {
     const loadTopic = async () => {
@@ -107,6 +154,11 @@ const LearnersPlatformTopicPage = ({ apiBaseUrl = '/api/learners-platform' }) =>
         setAssessmentLoaded(false);
         setAssessmentMessage('');
         setAssessmentCompleted(false);
+        setMcqAnswers({});
+        setInterviewAnswers({});
+        setFeedback(null);
+        setFeedbackLoading(false);
+        setFeedbackMessage('');
 
         const response = await getLearnersPlatformTopic(apiBaseUrl, slug);
         setTopic(response.topic || null);
@@ -175,6 +227,8 @@ const LearnersPlatformTopicPage = ({ apiBaseUrl = '/api/learners-platform' }) =>
 
         setAssessment(response.assessment || null);
         setAssessmentLoaded(true);
+        setFeedback(null);
+        setFeedbackMessage('');
       } catch (loadError) {
         setAssessment(null);
         setAssessmentMessage(loadError.message || 'Failed to load assessment.');
@@ -195,11 +249,11 @@ const LearnersPlatformTopicPage = ({ apiBaseUrl = '/api/learners-platform' }) =>
   ]);
 
   const handleAssessmentComplete = () => {
-    if (!topic || !assessment?.questions?.length) {
+    if (!topic || (!assessment?.mcqs?.length && !assessment?.interviewQuestions?.length)) {
       return;
     }
 
-    const relatedProblemIds = assessment.questions
+    const relatedProblemIds = [...(assessment.mcqs || []), ...(assessment.interviewQuestions || [])]
       .map((question) => question.relatedProblemId)
       .filter(Boolean);
 
@@ -208,6 +262,43 @@ const LearnersPlatformTopicPage = ({ apiBaseUrl = '/api/learners-platform' }) =>
       questionIds: relatedProblemIds,
     });
     setAssessmentCompleted(true);
+  };
+
+  const handleInterviewAnswerChange = (questionId, value) => {
+    setInterviewAnswers((prev) => ({
+      ...prev,
+      [questionId]: value,
+    }));
+  };
+
+  const handleMcqAnswerSelect = (questionId, optionIndex) => {
+    setMcqAnswers((prev) => ({
+      ...prev,
+      [questionId]: optionIndex,
+    }));
+  };
+
+  const handleGenerateFeedback = async () => {
+    if (!topic || !assessment) {
+      return;
+    }
+
+    try {
+      setFeedbackLoading(true);
+      setFeedbackMessage('');
+
+      const response = await getLearnersPlatformTopicAssessmentFeedback(apiBaseUrl, slug, assessment, {
+        mcqAnswers,
+        interviewAnswers,
+      });
+
+      setFeedback(response.feedback || null);
+    } catch (loadError) {
+      setFeedback(null);
+      setFeedbackMessage(loadError.message || 'Failed to generate feedback.');
+    } finally {
+      setFeedbackLoading(false);
+    }
   };
 
   if (loading) {
@@ -490,54 +581,64 @@ const LearnersPlatformTopicPage = ({ apiBaseUrl = '/api/learners-platform' }) =>
           <CardContent className="space-y-5">
             <p className="text-sm leading-7 text-muted-foreground">{topic.practiceFocus}</p>
 
-            <div className="grid gap-4">
-              {recommendedProblems.map((problem) => (
-                <article
-                  key={problem.id}
-                  className="rounded-[1.5rem] border border-border/70 bg-background/70 p-5 transition-colors hover:border-accent/50"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-2">
-                      <Link
-                        to={`/problems/${problem.id}`}
-                        className="text-lg font-semibold text-foreground transition-colors hover:text-accent"
+            {recommendedProblems.length > 0 ? (
+              <div className="grid gap-4">
+                {recommendedProblems.map((problem) => (
+                  <article
+                    key={problem.id}
+                    className="rounded-[1.5rem] border border-border/70 bg-background/70 p-5 transition-colors hover:border-accent/50"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-2">
+                        <Link
+                          to={`/problems/${problem.id}`}
+                          className="text-lg font-semibold text-foreground transition-colors hover:text-accent"
+                        >
+                          {problem.title}
+                        </Link>
+                        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                          {problem.description}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={difficultyStyles[problem.difficulty] || 'bg-secondary text-secondary-foreground'}
                       >
-                        {problem.title}
+                        {problem.difficulty}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {problem.category.map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-sm text-muted-foreground">
+                        Acceptance {problem.acceptanceRate}% · {problem.companies.length} company tags
+                      </div>
+                      <Link to={`/problems/${problem.id}`} className={secondaryLinkStyles}>
+                        Solve problem
                       </Link>
-                      <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                        {problem.description}
-                      </p>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={difficultyStyles[problem.difficulty] || 'bg-secondary text-secondary-foreground'}
-                    >
-                      {problem.difficulty}
-                    </Badge>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {problem.category.map((item) => (
-                      <span
-                        key={item}
-                        className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-sm text-muted-foreground">
-                      Acceptance {problem.acceptanceRate}% · {problem.companies.length} company tags
-                    </div>
-                    <Link to={`/problems/${problem.id}`} className={secondaryLinkStyles}>
-                      Solve problem
-                    </Link>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[1.5rem] border border-border/70 bg-secondary/30 p-5">
+                <p className="text-lg font-semibold text-foreground">Topic-specific practice is being curated</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  This topic currently leans more on videos, web content, and interview-style review than on the
+                  existing DSA problem bank. We are hiding unrelated problems here so the learning path stays relevant.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : null}
@@ -594,27 +695,206 @@ const LearnersPlatformTopicPage = ({ apiBaseUrl = '/api/learners-platform' }) =>
               </div>
             ) : null}
 
-            <div className="grid gap-4">
-              {(assessment?.questions || []).map((question, index) => (
-                <article
-                  key={question.id}
-                  className="rounded-[1.5rem] border border-border/70 bg-background/70 p-5"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
-                        Question {index + 1} · {question.type}
-                      </p>
-                      <h3 className="mt-2 text-lg font-semibold text-foreground">{question.title}</h3>
-                    </div>
-                    {question.focusArea ? <Badge variant="outline">{question.focusArea}</Badge> : null}
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{question.prompt}</p>
-                </article>
-              ))}
-            </div>
+            {(assessment?.mcqs || []).length ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    MCQ Test
+                  </p>
+                  <h3 className="mt-1 text-xl font-semibold text-foreground">Quick concept check</h3>
+                </div>
+                <div className="grid gap-4">
+                  {(assessment?.mcqs || []).map((question, index) => (
+                    <article
+                      key={question.id}
+                      className="rounded-[1.5rem] border border-border/70 bg-background/70 p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
+                            MCQ {index + 1}
+                          </p>
+                          <h3 className="mt-2 text-lg font-semibold text-foreground">{question.title}</h3>
+                        </div>
+                        {question.focusArea ? <Badge variant="outline">{question.focusArea}</Badge> : null}
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground">{question.prompt}</p>
+                      <div className="mt-4 grid gap-3">
+                        {(question.options || []).map((option, optionIndex) => {
+                          const selected = mcqAnswers[question.id] === optionIndex;
+                          return (
+                            <button
+                              key={`${question.id}-${optionIndex}`}
+                              type="button"
+                              onClick={() => handleMcqAnswerSelect(question.id, optionIndex)}
+                              className={`rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${
+                                selected
+                                  ? 'border-accent bg-accent/10 text-foreground'
+                                  : 'border-border/70 bg-card text-muted-foreground hover:border-accent/40 hover:text-foreground'
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
-            {assessment?.questions?.length ? (
+            {(assessment?.interviewQuestions || []).length ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Interview Round
+                  </p>
+                  <h3 className="mt-1 text-xl font-semibold text-foreground">Type your interview answers</h3>
+                </div>
+                <div className="grid gap-4">
+                  {(assessment?.interviewQuestions || []).map((question, index) => (
+                    <article
+                      key={question.id}
+                      className="rounded-[1.5rem] border border-border/70 bg-background/70 p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
+                            Interview Question {index + 1}
+                          </p>
+                          <h3 className="mt-2 text-lg font-semibold text-foreground">{question.title}</h3>
+                        </div>
+                        {question.focusArea ? <Badge variant="outline">{question.focusArea}</Badge> : null}
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground">{question.prompt}</p>
+                      {(question.answerGuide || []).length ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {question.answerGuide.map((guide) => (
+                            <Badge key={guide} variant="secondary">
+                              {guide}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="mt-4">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Your answer
+                        </label>
+                        <textarea
+                          value={interviewAnswers[question.id] || ''}
+                          onChange={(event) => handleInterviewAnswerChange(question.id, event.target.value)}
+                          placeholder="Type how you would answer this in a real interview..."
+                          className="min-h-36 w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-accent"
+                        />
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {(assessment?.mcqs?.length || assessment?.interviewQuestions?.length) ? (
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card/60 p-5">
+                <div>
+                  <p className="font-medium text-foreground">Ready for AI feedback?</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Gemini will review your topic test and interview-style answers when configured.
+                  </p>
+                </div>
+                <Button type="button" onClick={handleGenerateFeedback} disabled={feedbackLoading}>
+                  {feedbackLoading ? 'Generating feedback...' : 'Generate feedback'}
+                </Button>
+              </div>
+            ) : null}
+
+            {feedbackMessage ? (
+              <div className="rounded-2xl border border-border/70 bg-secondary/40 p-4 text-sm text-muted-foreground">
+                {feedbackMessage}
+              </div>
+            ) : null}
+
+            {feedback ? (
+              <div className="space-y-4 rounded-[1.5rem] border border-border/70 bg-card/70 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Feedback Report
+                    </p>
+                    <h3 className="mt-1 text-xl font-semibold text-foreground">AI review</h3>
+                  </div>
+                  <Badge variant="outline">{feedback.overallRating}</Badge>
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground">{feedback.summary}</p>
+
+                {(feedback.nextSteps || []).length ? (
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {feedback.nextSteps.map((step) => (
+                      <div key={step} className="rounded-2xl border border-border/70 bg-background/70 p-4 text-sm text-foreground">
+                        {step}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {(feedback.mcqFeedback || []).length ? (
+                  <div className="space-y-3">
+                    <h4 className="text-lg font-semibold text-foreground">MCQ review</h4>
+                    {feedback.mcqFeedback.map((item) => (
+                      <div key={item.id} className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="font-medium text-foreground">{item.title}</p>
+                          <Badge variant={item.isCorrect ? 'secondary' : 'outline'}>
+                            {item.isCorrect ? 'Correct' : 'Review this'}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.explanation}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {(feedback.interviewFeedback || []).length ? (
+                  <div className="space-y-3">
+                    <h4 className="text-lg font-semibold text-foreground">Interview answer review</h4>
+                    {feedback.interviewFeedback.map((item) => (
+                      <div key={item.id} className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="font-medium text-foreground">{item.title}</p>
+                          <Badge variant="outline">{item.rating}</Badge>
+                        </div>
+                        {(item.strengths || []).length ? (
+                          <div className="mt-3">
+                            <p className="text-sm font-medium text-foreground">Strengths</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {item.strengths.map((strength) => (
+                                <Badge key={strength} variant="secondary">
+                                  {strength}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                        {(item.improvements || []).length ? (
+                          <div className="mt-3">
+                            <p className="text-sm font-medium text-foreground">Improve next</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {item.improvements.map((improvement) => (
+                                <Badge key={improvement} variant="outline">
+                                  {improvement}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {(assessment?.mcqs?.length || assessment?.interviewQuestions?.length) ? (
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card/60 p-5">
                 <div>
                   <p className="font-medium text-foreground">Finished reviewing these questions?</p>

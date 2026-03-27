@@ -3,11 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { problems } from '../data/problems';
-import { Star, ArrowRight } from 'lucide-react';
+import { Star, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export function ProblemDetailPage() {
   const { id } = useParams();
   const problem = problems.find(p => p.id === id);
+  const { isProblemSolved } = useAuth();
 
   if (!problem) {
     return <div className="text-center py-12">Problem not found</div>;
@@ -25,6 +27,12 @@ export function ProblemDetailPage() {
         <div>
           <h1 className="text-4xl font-bold text-foreground mb-2">{problem.title}</h1>
           <div className="flex gap-2 items-center flex-wrap">
+            {isProblemSolved(problem.id) ? (
+              <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                Solved
+              </Badge>
+            ) : null}
             <Badge variant="outline" className={difficultyColor[problem.difficulty]}>
               {problem.difficulty}
             </Badge>
@@ -43,7 +51,8 @@ export function ProblemDetailPage() {
         </div>
         <Link to={`/problems/${problem.id}/editor`}>
           <Button>
-            Solve Problem <ArrowRight className="h-4 w-4 ml-2" />
+            {isProblemSolved(problem.id) ? 'Review Solution' : 'Solve Problem'}
+            <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         </Link>
       </div>

@@ -1,12 +1,7 @@
-require('dotenv').config();
+import 'dotenv/config';
+import ioredis from 'ioredis';
 
-let Redis;
-
-try {
-  Redis = require('ioredis');
-} catch (error) {
-  Redis = null;
-}
+let Redis = ioredis;
 
 const REDIS_URL = process.env.REDIS_URL;
 const DEFAULT_TTL_SECONDS = Number(process.env.LEARNERS_PLATFORM_YOUTUBE_CACHE_TTL || 21600);
@@ -100,9 +95,4 @@ const getRedisCacheStatus = () => ({
   defaultTtlSeconds: DEFAULT_TTL_SECONDS,
 });
 
-module.exports = {
-  DEFAULT_TTL_SECONDS,
-  getCache,
-  getRedisCacheStatus,
-  setCache,
-};
+export { DEFAULT_TTL_SECONDS, getCache, getRedisCacheStatus, setCache };

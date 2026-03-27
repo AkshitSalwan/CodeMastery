@@ -1,12 +1,13 @@
-const express = require('express');
-const {
+import express from 'express';
+import {
   getFeaturedTopics,
   getMeta,
   getTopicAssessment,
+  getTopicAssessmentFeedback,
   getTopicBySlug,
   getTopicVideos,
   getTopics,
-} = require('../controllers/learnersPlatformController');
+} from '../controllers/learnersPlatformController.js';
 
 const router = express.Router();
 
@@ -14,7 +15,8 @@ router.get('/meta', getMeta);
 router.get('/topics', getTopics);
 router.get('/topics/featured', getFeaturedTopics);
 router.post('/topics/:slug/assessment', getTopicAssessment);
+router.post('/topics/:slug/assessment/feedback', getTopicAssessmentFeedback);
 router.get('/topics/:slug/videos', getTopicVideos);
 router.get('/topics/:slug', getTopicBySlug);
 
-module.exports = router;
+export default router;

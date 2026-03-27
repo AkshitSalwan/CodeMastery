@@ -58,3 +58,20 @@ export const getLearnersPlatformTopicAssessment = async (baseUrl, slug, solvedPr
 
   return handleResponse(response);
 };
+
+export const getLearnersPlatformTopicAssessmentFeedback = async (
+  baseUrl,
+  slug,
+  assessment,
+  responses
+) => {
+  const response = await fetch(buildUrl(baseUrl, `/topics/${slug}/assessment/feedback`), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ assessment, responses }),
+  });
+
+  return handleResponse(response);
+};

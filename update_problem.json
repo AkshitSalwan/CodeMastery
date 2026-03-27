@@ -1,0 +1,8 @@
+{
+  "title": "Search Jolly",
+  "starter_code": {
+    "java": "import java.util.*;\n\npublic class Main {\n    public static Object checkWords(String[] arr) {\n        // Write your code here\n        return false;\n    }\n\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        String input = sc.nextLine().trim();\n        String[] arr = input.split(\" \");\n        Object result = checkWords(arr);\n        System.out.println(result);\n    }\n}",
+    "python": "def check_words(arr):\n    # Write your code here\n    return False\n\nif __name__ == \"__main__\":\n    input_str = input().strip()\n    arr = input_str.split()\n    result = check_words(arr)\n    print(result)",
+    "javascript": "const readline = require('readline');\nconst rl = readline.createInterface({\n    input: process.stdin,\n    output: process.stdout,\n    terminal: false\n});\n\nfunction checkWords(arr) {\n    // Write your code here\n    return false;\n}\n\nlet input = '';\nrl.on('line', (line) => {\n    input = line.trim();\n    const arr = input.split(' ');\n    const result = checkWords(arr);\n    console.log(result);\n    rl.close();\n});"
+  }
+}

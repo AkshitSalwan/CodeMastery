@@ -1,19 +1,42 @@
 import { useState, useRef, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { problems } from '../data/problems';
-import { Play, Copy, RefreshCw, Save, CheckCircle, XCircle, Clock, Zap } from 'lucide-react';
+import { Play, Copy, RefreshCw, Save, CheckCircle, XCircle, Clock, Zap, AlertCircle } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { DiscussionPanel } from '../components/DiscussionPanel';
 import { mockTestCases } from '../../lib/mock-data/test-cases';
 import { useAuth } from '../context/AuthContext';
-import { buildExecutionCode, compareExecutionOutput } from '../utils/problemExecution';
+import { compareExecutionOutput } from '../utils/problemExecution';
+import apiService from '../services/apiService';
+
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth-token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    console.warn('No auth token found in localStorage. User may not be authenticated.');
+  }
+  return headers;
+};
 
 export function CodeEditorPage() {
   const { id } = useParams();
-  const problem = problems.find(p => p.id === id);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const contestId = searchParams.get('contestId');
+  const contestProblemId = searchParams.get('problemId');
+  
+  // Check if user is authenticated
+  const isAuthenticated = user || localStorage.getItem('auth-token');
+  
+  const [problem, setProblem] = useState(null);
+  const [loading, setLoading] = useState(true);
   const { markProblemSolved } = useAuth();
   const [language, setLanguage] = useState('javascript');
   const [code, setCode] = useState('');
@@ -28,11 +51,110 @@ export function CodeEditorPage() {
   const [runnerMode, setRunnerMode] = useState('sample'); // 'sample' or 'custom'
   const editorRef = useRef(null);
 
+  const normalizeProblemData = (rawProblem) => {
+    if (!rawProblem) {
+      return rawProblem;
+    }
+
+    const normalizedProblem = { ...rawProblem };
+
+    const toArray = (value) => {
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      if (value == null || value === '') {
+        return [];
+      }
+
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+        } catch (error) {
+          return value
+            .split('\n')
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
+      }
+
+      return [];
+    };
+
+    normalizedProblem.constraints = toArray(normalizedProblem.constraints);
+    normalizedProblem.hints = toArray(normalizedProblem.hints);
+    normalizedProblem.examples = toArray(normalizedProblem.examples);
+    normalizedProblem.test_cases = toArray(normalizedProblem.test_cases);
+    normalizedProblem.tags = Array.isArray(normalizedProblem.tags) ? normalizedProblem.tags : [];
+
+    if (!normalizedProblem.difficulty && normalizedProblem.difficulty !== '') {
+      normalizedProblem.difficulty = 'Unknown';
+    }
+
+    return normalizedProblem;
+  };
+
+  // Fetch problem from API or static data
+  useEffect(() => {
+    const fetchProblem = async () => {
+      try {
+        setLoading(true);
+        // First try API
+        const response = await fetch(`/api/problems/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setProblem(normalizeProblemData(data.problem || data));
+        } else {
+          // Fall back to static problems
+          const staticProblem = problems.find(p => String(p.id) === String(id));
+          setProblem(normalizeProblemData(staticProblem));
+        }
+      } catch (error) {
+        console.error('Error fetching problem:', error);
+        // Fall back to static problems
+        const staticProblem = problems.find(p => String(p.id) === String(id));
+        setProblem(normalizeProblemData(staticProblem));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProblem();
+    }
+  }, [id]);
+
   const normalizeOutput = (str) => (str || '').replace(/\s+/g, '').replace(/\r/g, '').trim();
 
   useEffect(() => {
-    if (problem) {
-      setCode(problem.starterCode[language] || '');
+    if (problem && language) {
+      // Handle both API format (starter_code as string/JSON) and static format (starterCode as object)
+      let starterCode = '';
+      
+      if (problem.starterCode && typeof problem.starterCode === 'object') {
+        // Static format: object with language keys
+        starterCode = problem.starterCode[language] || '';
+      } else if (problem.starter_code) {
+        // API format: string or JSON string
+        try {
+          const parsed = typeof problem.starter_code === 'string' 
+            ? JSON.parse(problem.starter_code) 
+            : problem.starter_code;
+          
+          if (typeof parsed === 'object' && parsed[language]) {
+            starterCode = parsed[language];
+          } else if (typeof parsed === 'string') {
+            starterCode = parsed;
+          }
+        } catch (e) {
+          starterCode = problem.starter_code || '';
+        }
+      }
+      
+      setCode(starterCode);
     }
   }, [problem, language]);
 
@@ -46,12 +168,20 @@ export function CodeEditorPage() {
   }, [runnerMode]);
 
   // Use built-in mock test cases for core problems when explicit testCases are not defined
+  // Handle both API format (test_cases) and static format (testCases)
   const effectiveTestCases = problem?.testCases?.length
     ? problem.testCases
-    : (mockTestCases[problem?.id] || []);
+    : (problem?.test_cases?.length ? problem.test_cases : (mockTestCases[problem?.id] || []));
+
+  // Normalize test cases to consistent format with expectedOutput field
+  const normalizedTestCases = effectiveTestCases.map(tc => ({
+    input: tc.input || '',
+    expectedOutput: tc.expectedOutput || tc.output || '',
+    expected: tc.expected || tc.expectedOutput || tc.output || ''
+  }));
 
   // Only show a small set of sample test cases (no hidden tests)
-  const displayedTestCases = effectiveTestCases.slice(0, 2);
+  const displayedTestCases = normalizedTestCases.slice(0, 2);
 
   const monacoLanguageMap = {
     javascript: 'javascript',
@@ -67,14 +197,73 @@ export function CodeEditorPage() {
   ];
   const [theme, setTheme] = useState('vs-dark');
 
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background p-6">
+        <Card className="w-full max-w-md border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-900">
+              <AlertCircle className="h-5 w-5" />
+              Authentication Required
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-yellow-800">
+              You need to be logged in to run and submit code. Please log in to your account to continue.
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => navigate('/sign-in')}
+                className="flex-1"
+              >
+                Log In
+              </Button>
+              <Button 
+                onClick={() => navigate('/problems')}
+                variant="outline"
+                className="flex-1"
+              >
+                View Problems
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div className="text-center py-12 text-muted-foreground">Loading problem...</div>;
+  }
+
   if (!problem) {
-    return <div className="text-center py-12">Problem not found</div>;
+    return <div className="text-center py-12 text-destructive">Problem not found</div>;
   }
 
   const handleLanguageChange = (e) => {
     const newLanguage = e.target.value;
     setLanguage(newLanguage);
-    setCode(problem.starterCode[newLanguage] || '');
+    
+    // Handle both API format and static format
+    let starterCode = '';
+    if (problem.starterCode && typeof problem.starterCode === 'object') {
+      starterCode = problem.starterCode[newLanguage] || '';
+    } else if (problem.starter_code) {
+      try {
+        const parsed = typeof problem.starter_code === 'string' 
+          ? JSON.parse(problem.starter_code) 
+          : problem.starter_code;
+        if (typeof parsed === 'object' && parsed[newLanguage]) {
+          starterCode = parsed[newLanguage];
+        } else if (typeof parsed === 'string') {
+          starterCode = parsed;
+        }
+      } catch (e) {
+        starterCode = problem.starter_code || '';
+      }
+    }
+    setCode(starterCode);
   };
 
   const handleRun = async () => {
@@ -91,20 +280,38 @@ export function CodeEditorPage() {
 
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const activeTestCaseInput =
+        runnerMode === 'custom'
+          ? customInput
+          : (displayedTestCases[0]?.input || '');
 
-      const response = await fetch(`${API_BASE}/api/run`, {
+      const response = await fetch(`${API_BASE}/api/problems/run`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           language,
           code: trimmedCode,
-          stdin: '',
+          stdin: activeTestCaseInput,
         }),
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        setOutput(`Error from backend (${response.status}):\n${errText}`);
+        let errorMessage = `Error from backend (${response.status}):\n${errText}`;
+        
+        if (response.status === 401) {
+          const token = localStorage.getItem('auth-token');
+          errorMessage = token 
+            ? `Authentication failed. Your session may have expired. Please log in again.\n\nError: ${errText}`
+            : `Authentication required. Please log in to run code.\n\nError: ${errText}`;
+          console.error('Auth error details:', { 
+            hasToken: !!token,
+            response: response.status,
+            error: errText 
+          });
+        }
+        
+        setOutput(errorMessage);
         setIsRunning(false);
         return;
       }
@@ -152,9 +359,9 @@ export function CodeEditorPage() {
 
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || '';
-      const response = await fetch(`${API_BASE}/api/run`, {
+      const response = await fetch(`${API_BASE}/api/problems/run`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           language,
           code: code.trim(),
@@ -164,7 +371,21 @@ export function CodeEditorPage() {
 
       if (!response.ok) {
         const errText = await response.text();
-        setOutput(`Error from backend (${response.status}):\n${errText}`);
+        let errorMessage = `Error from backend (${response.status}):\n${errText}`;
+        
+        if (response.status === 401) {
+          const token = localStorage.getItem('auth-token');
+          errorMessage = token 
+            ? `Authentication failed. Your session may have expired. Please log in again.\n\nError: ${errText}`
+            : `Authentication required. Please log in to run code.\n\nError: ${errText}`;
+          console.error('Auth error details:', { 
+            hasToken: !!token,
+            response: response.status,
+            error: errText 
+          });
+        }
+        
+        setOutput(errorMessage);
         setIsRunning(false);
         return;
       }
@@ -212,85 +433,298 @@ export function CodeEditorPage() {
       return [];
     }
 
+    if (displayedTestCases.length === 0) {
+      setOutput('Error: No test cases available for this problem.');
+      return [];
+    }
+
     setIsRunning(true);
     setTestResults([]);
 
-    const results = [];
-    for (const testCase of displayedTestCases) {
-      try {
-        const API_BASE = import.meta.env.VITE_API_BASE || '';
-        const executionCode = buildExecutionCode({
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      
+      // Send all test cases to backend for proper comparison
+      const testCasesForBackend = displayedTestCases.map((tc, idx) => ({
+        input: tc.input,
+        expected: (tc.expectedOutput ?? tc.expected ?? '').toString(),
+        testNum: idx + 1,
+      }));
+
+      console.log('Sending test cases to backend:', testCasesForBackend);
+      console.log('Test cases details:', displayedTestCases);
+
+      const response = await fetch(`${API_BASE}/api/problems/run`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
           language,
           code: code.trim(),
-          testCaseInput: testCase.input,
+          testCases: testCasesForBackend,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Backend response:', result);
+        
+        // Map backend results to frontend format
+        // Backend returns either 'results' or 'testResults'
+        const backendResults = result.results || result.testResults || [];
+        
+        const results = backendResults.map((backendResult, idx) => {
+          // Get expected output from original test case
+          const originalTestCase = displayedTestCases[idx] || {};
+          const expected = (originalTestCase.expectedOutput ?? originalTestCase.expected ?? '').toString();
+          
+          return {
+            testNum: idx + 1,
+            input: backendResult.input,
+            expected: expected,
+            output: (backendResult.actualOutput || backendResult.actual || '').trim(),
+            passed: backendResult.passed === true,
+            status: result.status,
+            time: backendResult.runtime,
+            memory: backendResult.memory,
+            error: backendResult.error,
+          };
         });
-        const response = await fetch(`${API_BASE}/api/run`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            language,
-            code: executionCode,
-            stdin: '',
-          }),
-        });
 
-        if (response.ok) {
-          const result = await response.json();
-          const expected = (testCase.expectedOutput ?? testCase.expected ?? '').toString();
-          let actual = '';
-
-          if (result.compile_output) {
-            actual = result.compile_output;
-          } else if (result.stderr) {
-            actual = result.stderr;
-          } else {
-            actual = (result.stdout ?? '').toString();
-          }
-
-          const passed = compareExecutionOutput(actual, expected);
-          results.push({
-            ...testCase,
-            passed,
-            output: actual.trim(),
-            status: result.status?.description || 'Unknown',
-            time: result.time,
-            memory: result.memory,
-          });
-        } else {
-          results.push({
-            ...testCase,
-            passed: false,
-            output: 'Error',
-            status: 'Error',
+        console.log('Mapped results:', results);
+        setTestResults(results);
+        return results;
+      } else {
+        const errorText = await response.text();
+        let errorMessage = `Error: Failed to run tests - ${errorText}`;
+        
+        if (response.status === 401) {
+          const token = localStorage.getItem('auth-token');
+          errorMessage = token 
+            ? `Authentication failed. Your session may have expired. Please log in again.\n\nError: ${errorText}`
+            : `Authentication required. Please log in to run tests.\n\nError: ${errorText}`;
+          console.error('Auth error details:', { 
+            hasToken: !!token,
+            response: response.status,
+            error: errorText 
           });
         }
-      } catch (err) {
-        results.push({
-          ...testCase,
-          passed: false,
-          output: 'Network Error',
-          status: 'Error',
-        });
+        
+        console.error('Backend error:', errorText);
+        setOutput(errorMessage);
+        return [];
       }
+    } catch (err) {
+      console.error('Network error:', err);
+      setOutput('Error: Network error while running tests - ' + err.message);
+      return [];
+    } finally {
+      setIsRunning(false);
     }
-
-    setTestResults(results);
-    setIsRunning(false);
-
-    return results;
   };
 
   const handleSubmit = async () => {
+    if (!code.trim()) {
+      setOutput('Error: No code to submit. Please write something in the editor.');
+      return;
+    }
+
     setIsSubmitted(true);
     setSubmissionStatus('running');
+    setIsRunning(true);
+    setOutput('Submitting solution...');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      let submission = null;
+      let testcaseScore = null;
+
+      if (contestId) {
+        const targetProblemId = contestProblemId || problem?.id;
+        if (!targetProblemId) {
+          throw new Error('Contest problem is not available for submission.');
+        }
+
+        // Ensure learner has commenced the contest before submission.
+        try {
+          await apiService.contests.join(contestId);
+        } catch (joinError) {
+          const joinMessage = joinError?.message || 'Unable to join contest.';
+          if (joinMessage.includes('not started')) {
+            throw new Error('Contest has not started yet. Please wait for commencement time.');
+          }
+          if (joinMessage.includes('ended')) {
+            throw new Error('Contest has already ended. Submission is closed.');
+          }
+          if (!joinMessage.includes('Already')) {
+            throw joinError;
+          }
+        }
+
+        let contestResult;
+        try {
+          contestResult = await apiService.contests.submitProblem(
+            contestId,
+            targetProblemId,
+            {
+              code: code.trim(),
+              language,
+            }
+          );
+        } catch (contestSubmitError) {
+          const contestMessage = contestSubmitError?.message || '';
+          if (contestMessage.includes('Not participating')) {
+            // Retry once after forced join in case user opened editor directly.
+            await apiService.contests.join(contestId);
+            contestResult = await apiService.contests.submitProblem(
+              contestId,
+              targetProblemId,
+              {
+                code: code.trim(),
+                language,
+              }
+            );
+          } else if (contestMessage.includes('Problem already solved')) {
+            const submissionsData = await apiService.contests.submissions(contestId);
+            const submissions = submissionsData?.submissions || [];
+            const solvedSubmission = submissions.find(
+              (entry) =>
+                String(entry.problem_id || entry.problem?.id) === String(targetProblemId) &&
+                entry.is_accepted === true
+            );
+
+            setSubmissionStatus('accepted');
+            setOutput(
+              `Already solved in this contest.\n\n` +
+              `Further submissions are blocked for accepted problems.\n` +
+              `Score remains ${solvedSubmission?.score ?? 'as recorded on leaderboard'}.`
+            );
+            return;
+          } else {
+            throw contestSubmitError;
+          }
+        }
+
+        submission = contestResult?.submission || {};
+        testcaseScore = contestResult?.testcaseScore;
+      } else {
+        const response = await fetch(`${API_BASE}/api/problems/submit`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            problem_id: problem?.id,
+            code: code.trim(),
+            language,
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          let errorMessage = `Error from backend (${response.status}):\n${errText}`;
+
+          if (response.status === 401) {
+            const token = localStorage.getItem('auth-token');
+            errorMessage = token
+              ? `Authentication failed. Your session may have expired. Please log in again.\n\nError: ${errText}`
+              : `Authentication required. Please log in to submit code.\n\nError: ${errText}`;
+          }
+
+          setSubmissionStatus('failed');
+          setOutput(errorMessage);
+          return;
+        }
+
+        const result = await response.json();
+        submission = result.submission || {};
+      }
+
+      const verdict = submission.verdict || 'wrong_answer';
+      const visibleResults = (submission.test_results || []).map((testResult, index) => ({
+        testNum: index + 1,
+        input: testResult.input,
+        expected: testResult.expectedOutput,
+        output: (testResult.actualOutput || '').trim(),
+        passed: testResult.passed === true,
+        time: testResult.runtime,
+        memory: testResult.memory,
+        error: testResult.error,
+      }));
+
+      setTestResults(visibleResults);
+
+      const accepted = verdict === 'accepted';
+      setSubmissionStatus(accepted ? 'accepted' : 'failed');
+
+      if (accepted) {
+        const scoreLine = contestId ? `\nContest Score: ${testcaseScore ?? 0}` : '';
+        setOutput(`Accepted\n\nPassed ${submission.passed_tests}/${submission.total_tests} test cases${scoreLine}`);
+        if (problem) {
+          markProblemSolved(problem);
+        }
+      } else {
+        const details = visibleResults.length > 0
+          ? visibleResults
+              .map((testResult) => {
+                const status = testResult.passed ? 'PASS' : 'FAIL';
+                return `Test ${testResult.testNum}: ${status}\nInput: ${testResult.input}\nExpected: ${testResult.expected}\nGot: ${testResult.output || testResult.error || ''}`;
+              })
+              .join('\n\n')
+          : 'No visible test case details returned.';
+
+        setOutput(
+          `${String(verdict).replace(/_/g, ' ')}\n\nPassed ${submission.passed_tests}/${submission.total_tests} test cases${
+            contestId ? `\nContest Score: ${testcaseScore ?? 0}` : ''
+          }\n\n${details}`
+        );
+      }
+
+      try {
+        await fetch(`${API_BASE}/api/dpp/update`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+      } catch (progressError) {
+        console.warn('Failed to refresh DPP progress after submission:', progressError);
+      }
+    } catch (error) {
+      if (!String(error?.message || '').includes('Problem already solved')) {
+        console.error('Submission error:', error);
+      }
+      setSubmissionStatus('failed');
+      setOutput(error?.message || 'Unexpected error while submitting code.');
+    } finally {
+      setIsRunning(false);
+    }
+
+    return;
+
+    setIsSubmitted(true);
+    setSubmissionStatus('running');
+    setOutput('Running tests...');
 
     // Run all test cases and determine result based on fresh results
     const results = await handleRunTestCases();
-    const allPassed = (results || []).every(result => result.passed);
+    
+    if (!results || results.length === 0) {
+      setOutput('Error: No test results returned. Please check your code.');
+      setSubmissionStatus('failed');
+      return;
+    }
+    
+    const allPassed = results.every(result => result.passed === true);
+    const passedCount = results.filter(r => r.passed === true).length;
+    
+    // Set submission status
     setSubmissionStatus(allPassed ? 'accepted' : 'failed');
-
-    if (allPassed && problem) {
-      markProblemSolved(problem);
+    
+    // Create detailed output message with test details
+    if (allPassed) {
+      setOutput(`✓ Accepted\n\nAll ${results.length} test case${results.length > 1 ? 's' : ''} passed!\n\n${results.map((r, i) => `Test ${i + 1}: ✓ PASS`).join('\n')}`);
+      if (problem) {
+        markProblemSolved(problem);
+      }
+    } else {
+      const details = results.map((r, i) => `Test ${i + 1}: ${r.passed ? '✓ PASS' : '✗ FAIL'}\nInput: ${r.input}\nExpected: ${r.expected}\nGot: ${r.output}`).join('\n\n');
+      setOutput(`✗ Wrong Answer\n\nPassed ${passedCount}/${results.length} test cases\n\n${details}`);
     }
   };
 
@@ -305,7 +739,29 @@ export function CodeEditorPage() {
     );
     if (!confirmed) return;
 
-    setCode(problem.starterCode[language] || '');
+    // Handle both API format (starter_code as string) and static format (starterCode as object)
+    let starterCode = '';
+    
+    if (problem.starterCode && typeof problem.starterCode === 'object') {
+      // Static format: object with language keys
+      starterCode = problem.starterCode[language] || '';
+    } else if (problem.starter_code) {
+      // API format: JSON string
+      try {
+        const parsed = typeof problem.starter_code === 'string' 
+          ? JSON.parse(problem.starter_code) 
+          : problem.starter_code;
+        if (typeof parsed === 'object' && parsed[language]) {
+          starterCode = parsed[language];
+        } else if (typeof parsed === 'string') {
+          starterCode = parsed;
+        }
+      } catch (e) {
+        starterCode = problem.starter_code || '';
+      }
+    }
+
+    setCode(starterCode);
     setOutput('');
     setTestResults([]);
     setIsSubmitted(false);
@@ -395,7 +851,7 @@ export function CodeEditorPage() {
               <div className="h-full flex flex-col gap-4 p-4">
                 {/* Editor Header */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center flex-wrap">
                     <select
                       value={language}
                       onChange={handleLanguageChange}
@@ -415,6 +871,11 @@ export function CodeEditorPage() {
                         <option key={t.value} value={t.value}>{t.label}</option>
                       ))}
                     </select>
+                    {contestId ? (
+                      <span className="px-2 py-1 rounded-md bg-secondary/40 text-xs font-mono text-muted-foreground">
+                        #{contestId}
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="flex gap-2">
@@ -430,9 +891,9 @@ export function CodeEditorPage() {
                       <Play className="h-4 w-4 mr-1" />
                       {isRunning ? 'Running...' : 'Run'}
                     </Button>
-                    <Button size="sm" onClick={handleSubmit} disabled={isRunning || isSubmitted}>
+                    <Button size="sm" onClick={handleSubmit} disabled={isRunning}>
                       <Save className="h-4 w-4 mr-1" />
-                      {isSubmitted ? 'Submitted' : 'Submit'}
+                      {contestId ? 'Submit to Contest' : 'Submit'}
                     </Button>
                   </div>
                 </div>
