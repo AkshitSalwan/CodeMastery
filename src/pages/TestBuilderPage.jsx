@@ -28,7 +28,7 @@ const difficultyLevels = [
 ];
 
 export function TestBuilderPage() {
-  const { user } = useAuth();
+  const { user, bumpAdminMetric } = useAuth();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState('setup'); // 'setup' or 'questions'
   const [error, setError] = useState('');
@@ -160,8 +160,11 @@ export function TestBuilderPage() {
     if (activities.length > 20) activities.pop();
     localStorage.setItem('recentActivities', JSON.stringify(activities));
 
+    bumpAdminMetric('contestsCreated', 1, { title: testSetup.testName });
+    bumpAdminMetric('testcasesDesigned', questions.length);
+
     alert(`Test "${testSetup.testName}" created successfully with ${questions.length} questions!`);
-    navigate('/contests');
+    navigate('/interviewer');
   };
 
   const totalScore = calculateTotalScore();

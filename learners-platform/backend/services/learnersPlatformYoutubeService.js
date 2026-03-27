@@ -1,5 +1,6 @@
+import { DEFAULT_TTL_SECONDS, getCache, setCache } from '../../../server/utils/redisCache.js';
+
 const YOUTUBE_API_URL = 'https://www.googleapis.com/youtube/v3/search';
-const { DEFAULT_TTL_SECONDS, getCache, setCache } = require('../../../server/utils/redisCache');
 
 const difficultyQueryMap = {
   beginner: 'for beginners introduction tutorial',
@@ -143,7 +144,7 @@ const searchTopicVideos = async (topic, difficulty = 'beginner') => {
   }
 };
 
-module.exports = {
+export {
   buildTopicVideosCacheKey,
   searchTopicVideos,
 };

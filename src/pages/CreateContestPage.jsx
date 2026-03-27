@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
+import apiService from '../services/apiService';
 
 export function CreateContestPage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState('');
@@ -73,7 +72,7 @@ export function CreateContestPage() {
     setEndDate(iso);
   }, [startDate, durationPreset]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -118,11 +117,6 @@ export function CreateContestPage() {
     setSubmitting(true);
 
     try {
-      const durationDays = Math.max(
-        1,
-        Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-      );
-
       const parsedMaxParticipants = parseInt(maxParticipants || '0', 10) || 1000;
       const parsedEntryFee = parseFloat(entryFee || '0') || 0;
 
@@ -131,53 +125,40 @@ export function CreateContestPage() {
         prizeSecond.trim().length > 0 ||
         prizeThird.trim().length > 0;
 
-      const newContest = {
-        id: Date.now().toString(),
+      const payload = {
         title: title.trim(),
-        description: description.trim(),
-        createdBy: {
-          id: user?.id || 'interviewer-custom',
-          name: user?.name || user?.email || 'Interviewer',
-          avatar: user?.avatar || '',
-        },
-        status,
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
-        duration: durationDays,
-        difficulty,
-        totalProblems: problemIdList.length,
-        participants: 0,
-        maxParticipants: parsedMaxParticipants,
-        entryFee: parsedEntryFee,
-        prize: hasPrize
+        slug: `${title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`,
+        description: `${description.trim()}\n\nDifficulty: ${difficulty}\nEntry Fee: $${parsedEntryFee}`,
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        problems: problemIdList,
+        rules,
+        penalty: 10,
+        max_participants: parsedMaxParticipants,
+        visibility: 'public',
+        contest_type: status === 'completed' ? 'special' : 'hiring',
+        prizes: hasPrize
           ? {
               first: prizeFirst.trim() || null,
               second: prizeSecond.trim() || null,
               third: prizeThird.trim() || null,
             }
           : null,
-        problems: problemIdList,
-        rules: rules
-          .split('\n')
-          .map((r) => r.trim())
-          .filter(Boolean),
-        tags: tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
-        participationStatus: 'not-joined',
-        userRank: null,
+        scoring: {
+          mode: 'testcase_weighted',
+          tags: tags
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+        },
       };
 
-      const stored = localStorage.getItem('customContests');
-      const existing = stored ? JSON.parse(stored) : [];
-      const updated = [...existing, newContest];
-      localStorage.setItem('customContests', JSON.stringify(updated));
+      await apiService.contests.create(payload);
 
       navigate('/contests');
     } catch (err) {
       console.error(err);
-      setError('Failed to create contest. Please try again.');
+      setError(err?.message || 'Failed to create contest. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -439,4 +420,3 @@ export function CreateContestPage() {
     </div>
   );
 }
-

@@ -562,4 +562,142 @@ public:
     rating: 4.3,
     ratingCount: 6890,
   },
+  {
+    id: '11',
+    title: 'Maximum Circular Subarray Sum',
+    description: 'Given a circular integer array nums (the last element is adjacent to the first element), find the maximum sum of any subarray of nums. A subarray may wrap around.',
+    difficulty: 'Medium',
+    category: ['Array', 'Dynamic Programming'],
+    acceptanceRate: 38.5,
+    submissions: 4567890,
+    companies: ['Adobe', 'Amazon', 'Google'],
+    constraints: [
+      '1 <= nums.length <= 3 × 10^4',
+      '-3 × 10^4 <= nums[i] <= 3 × 10^4',
+    ],
+    examples: [
+      {
+        input: '[1,-2,3,-2]',
+        output: '3',
+        explanation: 'Subarray [3] has the maximum sum 3',
+      },
+      {
+        input: '[5,-3,5]',
+        output: '10',
+        explanation: 'Subarray [5,5] (wraps around) has the maximum sum 10',
+      },
+      {
+        input: '[-2,-3,-1]',
+        output: '-1',
+        explanation: 'Subarray [-1] has the maximum sum -1',
+      },
+    ],
+    testCases: [
+      { input: '[1,-2,3,-2]', output: '3' },
+      { input: '[5,-3,5]', output: '10' },
+    ],
+    starterCode: {
+      javascript: `function maxSubarraySumCircular(nums) {
+    // Helper: Find maximum subarray using Kadane's
+    function maxSubarray(arr) {
+        let maxSum = arr[0], sum = arr[0];
+        for (let i = 1; i < arr.length; i++) {
+            sum = Math.max(arr[i], sum + arr[i]);
+            maxSum = Math.max(maxSum, sum);
+        }
+        return maxSum;
+    }
+    
+    // Helper: Find minimum subarray using Kadane's
+    function minSubarray(arr) {
+        let minSum = arr[0], sum = arr[0];
+        for (let i = 1; i < arr.length; i++) {
+            sum = Math.min(arr[i], sum + arr[i]);
+            minSum = Math.min(minSum, sum);
+        }
+        return minSum;
+    }
+    
+    // Write your code here
+    return 0;
+}`,
+      python: `def maxSubarraySumCircular(nums):
+    def maxSubarray(arr):
+        maxSum, sum_ = arr[0], arr[0]
+        for i in range(1, len(arr)):
+            sum_ = max(arr[i], sum_ + arr[i])
+            maxSum = max(maxSum, sum_)
+        return maxSum
+    
+    def minSubarray(arr):
+        minSum, sum_ = arr[0], arr[0]
+        for i in range(1, len(arr)):
+            sum_ = min(arr[i], sum_ + arr[i])
+            minSum = min(minSum, sum_)
+        return minSum
+    
+    # Write your code here
+    return 0`,
+      java: `class Solution {
+    public int maxSubarraySumCircular(int[] nums) {
+        // Write your code here
+        return 0;
+    }
+    
+    private int maxSubarray(int[] nums) {
+        int maxSum = nums[0], sum = nums[0];
+        for (int i = 1; i < nums.length; i++) {
+            sum = Math.max(nums[i], sum + nums[i]);
+            maxSum = Math.max(maxSum, sum);
+        }
+        return maxSum;
+    }
+    
+    private int minSubarray(int[] nums) {
+        int minSum = nums[0], sum = nums[0];
+        for (int i = 1; i < nums.length; i++) {
+            sum = Math.min(nums[i], sum + nums[i]);
+            minSum = Math.min(minSum, sum);
+        }
+        return minSum;
+    }
+}`,
+      cpp: `class Solution {
+public:
+    int maxSubarraySumCircular(vector<int>& nums) {
+        // Write your code here
+        return 0;
+    }
+    
+private:
+    int maxSubarray(vector<int>& nums) {
+        int maxSum = nums[0], sum = nums[0];
+        for (int i = 1; i < nums.size(); i++) {
+            sum = max(nums[i], sum + nums[i]);
+            maxSum = max(maxSum, sum);
+        }
+        return maxSum;
+    }
+    
+    int minSubarray(vector<int>& nums) {
+        int minSum = nums[0], sum = nums[0];
+        for (int i = 1; i < nums.size(); i++) {
+            sum = min(nums[i], sum + nums[i]);
+            minSum = min(minSum, sum);
+        }
+        return minSum;
+    }
+};`,
+    },
+    hints: [
+      'There are two cases: maximum sum is either linear (normal Kadane) or circular',
+      'For circular case: total_sum - minimum_subarray_sum',
+      'Use Kadane algorithm to find both maximum and minimum subarrays',
+      'Handle edge case: if all numbers are negative, return the maximum element',
+      'The answer is max(maxKadane, totalSum - minKadane)',
+    ],
+    explanation: 'Use Kadane\'s algorithm twice: once for the maximum subarray and once for the minimum subarray. Then compare the linear maximum with the circular maximum (total - minimum).',
+    rating: 4.2,
+    ratingCount: 4321,
+  },
 ];

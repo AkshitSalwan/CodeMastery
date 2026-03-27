@@ -3,117 +3,126 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const redis = new Redis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: 3,
-  retryDelayOnFailover: 100,
-  lazyConnect: true
-});
+const redisUrl = process.env.REDIS_URL;
+let redis = null;
+let redisAvailable = false;
+let warnedUnavailable = false;
 
-redis.on('connect', () => {
-  console.log('✅ Redis connected successfully.');
-});
+const logUnavailable = (message) => {
+  if (!warnedUnavailable) {
+    console.warn(`Redis unavailable, continuing without cache: ${message}`);
+    warnedUnavailable = true;
+  }
+};
 
-redis.on('error', (err) => {
-  console.error('❌ Redis connection error:', err.message);
-});
+if (redisUrl) {
+  redis = new Redis(redisUrl, {
+    lazyConnect: true,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
+    retryStrategy: () => null,
+    reconnectOnError: () => false,
+  });
 
-// Cache utility functions
+  redis.on('connect', () => {
+    redisAvailable = true;
+    warnedUnavailable = false;
+    console.log('Redis connected successfully.');
+  });
+
+  redis.on('error', (err) => {
+    redisAvailable = false;
+    logUnavailable(err.message || 'connection error');
+  });
+} else {
+  logUnavailable('REDIS_URL is not configured');
+}
+
+const withRedis = async (operation, fallback) => {
+  if (!redis) {
+    return fallback;
+  }
+
+  try {
+    if (!redisAvailable) {
+      await redis.connect();
+    }
+
+    redisAvailable = true;
+    return await operation();
+  } catch (error) {
+    redisAvailable = false;
+    logUnavailable(error.message || 'operation failed');
+    return fallback;
+  }
+};
+
 const cacheService = {
-  // Set cache with expiry (default 1 hour)
   async set(key, value, expiry = 3600) {
-    try {
+    return withRedis(async () => {
       const stringValue = typeof value === 'object' ? JSON.stringify(value) : value;
       await redis.setex(key, expiry, stringValue);
       return true;
-    } catch (error) {
-      console.error('Cache set error:', error.message);
-      return false;
-    }
+    }, false);
   },
 
-  // Get cached value
   async get(key) {
-    try {
+    return withRedis(async () => {
       const value = await redis.get(key);
-      if (!value) return null;
+      if (!value) {
+        return null;
+      }
+
       try {
         return JSON.parse(value);
       } catch {
         return value;
       }
-    } catch (error) {
-      console.error('Cache get error:', error.message);
-      return null;
-    }
+    }, null);
   },
 
-  // Delete cache
   async del(key) {
-    try {
+    return withRedis(async () => {
       await redis.del(key);
       return true;
-    } catch (error) {
-      console.error('Cache delete error:', error.message);
-      return false;
-    }
+    }, false);
   },
 
-  // Delete pattern
   async delPattern(pattern) {
-    try {
+    return withRedis(async () => {
       const keys = await redis.keys(pattern);
       if (keys.length > 0) {
         await redis.del(...keys);
       }
       return true;
-    } catch (error) {
-      console.error('Cache delete pattern error:', error.message);
-      return false;
-    }
+    }, false);
   },
 
-  // Leaderboard operations
   async addToLeaderboard(leaderboardKey, memberId, score) {
-    try {
+    return withRedis(async () => {
       await redis.zadd(leaderboardKey, score, memberId);
       return true;
-    } catch (error) {
-      console.error('Leaderboard add error:', error.message);
-      return false;
-    }
+    }, false);
   },
 
   async getLeaderboard(leaderboardKey, start = 0, end = -1) {
-    try {
-      const results = await redis.zrevrange(leaderboardKey, start, end, 'WITHSCORES');
-      return results;
-    } catch (error) {
-      console.error('Leaderboard get error:', error.message);
-      return [];
-    }
+    return withRedis(async () => redis.zrevrange(leaderboardKey, start, end, 'WITHSCORES'), []);
   },
 
   async getRank(leaderboardKey, memberId) {
-    try {
+    return withRedis(async () => {
       const rank = await redis.zrevrank(leaderboardKey, memberId);
       return rank !== null ? rank + 1 : null;
-    } catch (error) {
-      console.error('Rank get error:', error.message);
-      return null;
-    }
+    }, null);
   },
 
   async getScore(leaderboardKey, memberId) {
-    try {
+    return withRedis(async () => {
       const score = await redis.zscore(leaderboardKey, memberId);
       return score ? parseFloat(score) : null;
-    } catch (error) {
-      console.error('Score get error:', error.message);
-      return null;
-    }
+    }, null);
   },
 
-  // Session storage
   async setSession(sessionId, data, expiry = 86400) {
     return this.set(`session:${sessionId}`, data, expiry);
   },

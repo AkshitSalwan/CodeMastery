@@ -2,7 +2,6 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ProgressChart } from '../../components/dashboard/progress-chart';
 import { useAuth } from '../context/AuthContext';
-import { ACHIEVEMENTS } from '../data/achievements';
 
 // Dummy stats data for demonstration
 const userStats = {
@@ -21,13 +20,48 @@ const userStats = {
 export default function UserProfilePage() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
+  const [badges, setBadges] = React.useState([]);
+
+  // Fetch user's earned badges from database
+  React.useEffect(() => {
+    const fetchUserBadges = async () => {
+      try {
+        const token = localStorage.getItem('auth-token');
+        if (!token) {
+          setBadges([]);
+          return;
+        }
+
+        const response = await fetch('/api/badges/user', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setBadges(data.badges || []);
+        } else {
+          console.warn('Failed to fetch user badges');
+          setBadges([]);
+        }
+      } catch (err) {
+        console.error('Error fetching badges:', err);
+        setBadges([]);
+      }
+    };
+
+    fetchUserBadges();
+  }, []);
 
   if (!user) {
     return <div className="p-8 text-center">Loading profile...</div>;
   }
 
   const skills = ['JavaScript', 'React', 'Algorithms', 'Data Structures'];
-  const badges = ACHIEVEMENTS.filter(a => a.unlocked);
 
   const [editing, setEditing] = React.useState(false);
   const [profileForm, setProfileForm] = React.useState({
@@ -81,7 +115,7 @@ export default function UserProfilePage() {
     <div className="min-h-screen bg-background pt-24 px-4 sm:px-6 lg:px-8 pb-16">
       <div className="max-w-5xl mx-auto bg-card rounded-3xl shadow-xl p-10 flex flex-col md:flex-row gap-10 border border-border/50 dark:border-border/30 transition-all duration-300">
         {/* Profile Info */}
-        <div className="flex flex-col items-center md:w-1/3 bg-gradient-to-br from-muted/60 to-muted/40 dark:from-muted/40 dark:to-muted/20 rounded-2xl shadow-md p-6 border border-border/30 dark:border-border/20 transition-all duration-300">
+        <div className="flex flex-col items-center md:w-1/3 bg-linear-to-br from-muted/60 to-muted/40 dark:from-muted/40 dark:to-muted/20 rounded-2xl shadow-md p-6 border border-border/30 dark:border-border/20 transition-all duration-300">
           <img
             src={user.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=user'}
             alt="User Avatar"
@@ -90,8 +124,8 @@ export default function UserProfilePage() {
           {badges.length > 0 && (
             <div className="flex gap-1 mb-2">
               {badges.map(b => (
-                <span key={b.id} title={b.name} className="text-xl">
-                  {b.icon}
+                <span key={b.id} title={b.badge?.name} className="text-xl">
+                  {b.badge?.icon || ''}
                 </span>
               ))}
             </div>
@@ -221,24 +255,24 @@ export default function UserProfilePage() {
               {activeTab === 'overview' && (
                 <div className="space-y-6 animate-in fade-in duration-300">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="p-6 bg-gradient-to-br from-muted/80 to-muted/40 dark:from-muted/50 dark:to-muted/20 rounded-xl border border-border/40 dark:border-border/20 shadow-sm hover:shadow-md hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
+                    <div className="p-6 bg-linear-to-br from-muted/80 to-muted/40 dark:from-muted/50 dark:to-muted/20 rounded-xl border border-border/40 dark:border-border/20 shadow-sm hover:shadow-md hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tests Conducted</p>
                       <p className="text-3xl font-bold text-foreground mt-2">{interviewerStats.testsConducted}</p>
                     </div>
-                    <div className="p-6 bg-gradient-to-br from-muted/80 to-muted/40 dark:from-muted/50 dark:to-muted/20 rounded-xl border border-border/40 dark:border-border/20 shadow-sm hover:shadow-md hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
+                    <div className="p-6 bg-linear-to-br from-muted/80 to-muted/40 dark:from-muted/50 dark:to-muted/20 rounded-xl border border-border/40 dark:border-border/20 shadow-sm hover:shadow-md hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Questions Created</p>
                       <p className="text-3xl font-bold text-foreground mt-2">{interviewerStats.questionsCreated}</p>
                     </div>
-                    <div className="p-6 bg-gradient-to-br from-muted/80 to-muted/40 dark:from-muted/50 dark:to-muted/20 rounded-xl border border-border/40 dark:border-border/20 shadow-sm hover:shadow-md hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
+                    <div className="p-6 bg-linear-to-br from-muted/80 to-muted/40 dark:from-muted/50 dark:to-muted/20 rounded-xl border border-border/40 dark:border-border/20 shadow-sm hover:shadow-md hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contests Created</p>
                       <p className="text-3xl font-bold text-foreground mt-2">{interviewerStats.contestsCreated}</p>
                     </div>
-                    <div className="p-6 bg-gradient-to-br from-muted/80 to-muted/40 dark:from-muted/50 dark:to-muted/20 rounded-xl border border-border/40 dark:border-border/20 shadow-sm hover:shadow-md hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
+                    <div className="p-6 bg-linear-to-br from-muted/80 to-muted/40 dark:from-muted/50 dark:to-muted/20 rounded-xl border border-border/40 dark:border-border/20 shadow-sm hover:shadow-md hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Interviews Held</p>
                       <p className="text-3xl font-bold text-foreground mt-2">{interviewerStats.interviewsHeld}</p>
                     </div>
                   </div>
-                  <div className="p-6 bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/15 dark:to-primary/5 rounded-xl border border-primary/20 dark:border-primary/15 shadow-sm">
+                  <div className="p-6 bg-linear-to-r from-primary/10 to-primary/5 dark:from-primary/15 dark:to-primary/5 rounded-xl border border-primary/20 dark:border-primary/15 shadow-sm">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Average Rating</p>
                     <p className="text-3xl font-bold text-foreground mt-2">{interviewerStats.averageRating} <span className="text-2xl">⭐</span></p>
                   </div>
@@ -252,19 +286,19 @@ export default function UserProfilePage() {
                       <h3 className="text-2xl font-bold text-foreground">{user.name} <span className="text-sm font-medium text-muted-foreground ml-2">— {interviewerProfile.title}</span></h3>
                       <p className="text-muted-foreground mt-2 leading-relaxed">{user.bio || 'Experienced interviewer with a passion for DSA and web technologies.'}</p>
                       <div className="mt-6 grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-gradient-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20 hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
+                        <div className="p-4 bg-linear-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20 hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Company</p>
                           <p className="font-semibold text-foreground mt-1">{interviewerProfile.company}</p>
                         </div>
-                        <div className="p-4 bg-gradient-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20 hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
+                        <div className="p-4 bg-linear-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20 hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Location</p>
                           <p className="font-semibold text-foreground mt-1">{interviewerProfile.location}</p>
                         </div>
-                        <div className="p-4 bg-gradient-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20 hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
+                        <div className="p-4 bg-linear-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20 hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Experience</p>
                           <p className="font-semibold text-foreground mt-1">{interviewerProfile.experienceYears} years</p>
                         </div>
-                        <div className="p-4 bg-gradient-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20 hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
+                        <div className="p-4 bg-linear-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20 hover:border-border/60 dark:hover:border-border/40 transition-all duration-300">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Specializations</p>
                           <p className="font-semibold text-foreground mt-1 text-sm">{interviewerProfile.specializations.join(', ')}</p>
                         </div>
@@ -321,7 +355,7 @@ export default function UserProfilePage() {
               {activeTab === 'availability' && (
                 <div className="space-y-4 animate-in fade-in duration-300">
                   <h3 className="text-xl font-semibold text-foreground">Availability</h3>
-                  <div className="p-4 bg-gradient-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20">
+                  <div className="p-4 bg-linear-to-br from-muted/60 to-muted/30 dark:from-muted/40 dark:to-muted/15 rounded-lg border border-border/40 dark:border-border/20">
                     <p className="text-foreground font-semibold">{interviewerProfile.availability}</p>
                     <p className="text-sm text-muted-foreground mt-1">Timezone: PST</p>
                   </div>
@@ -336,7 +370,7 @@ export default function UserProfilePage() {
         ) : (
           <div className="flex-1 flex flex-col justify-center items-center animate-in fade-in duration-300">
             <h3 className="text-2xl font-bold text-foreground mb-8 tracking-tight">Progress Overview</h3>
-            <div className="w-full max-w-lg bg-gradient-to-br from-muted/40 to-muted/10 dark:from-muted/30 dark:to-muted/5 p-6 rounded-2xl border border-border/30 dark:border-border/20 shadow-sm">
+            <div className="w-full max-w-lg bg-linear-to-br from-muted/40 to-muted/10 dark:from-muted/30 dark:to-muted/5 p-6 rounded-2xl border border-border/30 dark:border-border/20 shadow-sm">
               <ProgressChart stats={userStats} />
             </div>
           </div>

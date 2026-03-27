@@ -264,9 +264,9 @@ const learningTopics = [
         description: 'Learn where indexes help, where they hurt, and how schema decisions affect runtime behavior.'
       }
     ],
-    problemCategories: ['Hash Table', 'Sorting', 'Graph', 'Math'],
-    recommendedProblemIds: ['1', '2', '6', '8'],
-    practiceFocus: 'These problems sharpen the data-shaping mindset that pairs well with schema design and query optimization work.',
+    problemCategories: [],
+    recommendedProblemIds: [],
+    practiceFocus: 'Use the readings and interview-style review first here. Topic-specific database problems are being added so this track is not forced to show unrelated DSA questions.',
     resources: [
       {
         title: 'SQL Tutorial',
@@ -322,9 +322,9 @@ const learningTopics = [
         description: 'Practice structured discussions that turn vague prompts into concrete architectures.'
       }
     ],
-    problemCategories: ['Graph', 'Tree', 'Sorting', 'Dynamic Programming'],
-    recommendedProblemIds: ['5', '6', '7', '8'],
-    practiceFocus: 'These algorithm problems build the decomposition and state-management habits that make system design explanations sharper.',
+    problemCategories: [],
+    recommendedProblemIds: [],
+    practiceFocus: 'Focus on architecture patterns, tradeoffs, and review questions for now. System-design-specific practice prompts are being separated from the DSA bank so this page stays relevant.',
     resources: [
       {
         title: 'System Design Tutorial',
@@ -354,7 +354,7 @@ const learnersPlatformMeta = {
   }
 };
 
-module.exports = {
+export {
   learningTopics,
   learnersPlatformMeta,
 };
