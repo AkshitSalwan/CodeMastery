@@ -342,7 +342,7 @@ export const submitSolution = asyncHandler(async (req, res) => {
 
 // Run code (without submitting)
 export const runCode = asyncHandler(async (req, res) => {
-  const { code, language, testCases } = req.body;
+  const { code, language, testCases, stdin } = req.body;
   
   const languageId = judge0Service.getLanguageId(language);
   if (!languageId) {
@@ -351,8 +351,13 @@ export const runCode = asyncHandler(async (req, res) => {
   
   const results = [];
   
-  for (const testCase of testCases || []) {
-    const result = await judge0Service.executeCode(code, language, testCase.input);
+  // Handle both testCases array and single stdin input
+  const casesToRun = testCases && testCases.length > 0 
+    ? testCases 
+    : (stdin ? [{ input: stdin }] : []);
+  
+  for (const testCase of casesToRun) {
+    const result = await judge0Service.executeCode(code, language, testCase.input || '');
     
     // Use 'expected' field (from frontend) or fall back to 'output' (for backwards compatibility)
     const expectedOutput = testCase.expected ?? testCase.output ?? '';

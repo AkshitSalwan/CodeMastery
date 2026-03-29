@@ -117,12 +117,13 @@ export const updateDPPProgress = asyncHandler(async (req, res) => {
   const userId = req.dbUser.id;
   const today = getLocalDateString();
   
-  const dailyProblem = await DailyProblem.findOne({
+  let dailyProblem = await DailyProblem.findOne({
     where: { date: today }
   });
   
+  // Generate if not exists
   if (!dailyProblem) {
-    throw new NotFoundError('Daily problems');
+    dailyProblem = await generateDailyProblems(today);
   }
   
   const todayWindow = { [Op.gte]: getStartOfLocalDay() };

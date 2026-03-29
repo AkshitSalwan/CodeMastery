@@ -274,11 +274,14 @@ int main() {
       }
     ],
     test_cases: [
-      { input: '-2 1 -3 4 -1 2 1 -5 4', output: '6' }
-    ],
-    hidden_test_cases: [
+      { input: '-2 1 -3 4 -1 2 1 -5 4', output: '6' },
       { input: '1', output: '1' },
       { input: '5 4 -1 7 8', output: '23' }
+    ],
+    hidden_test_cases: [
+      { input: '-3 -1 -2', output: '-1' },
+      { input: '-2 1 -3 4 -1 2 1 -5 4', output: '6' },
+      { input: '0 0 0', output: '0' }
     ],
     starter_code: {
       javascript: `const lines = require('fs').readFileSync('/dev/stdin', 'utf8').trim().split('\\n');
@@ -360,11 +363,14 @@ nums2.length == n
       }
     ],
     test_cases: [
-      { input: '1 2 3 0 0 0\n3\n2 5 6\n3', output: '1 2 2 3 5 6' }
-    ],
-    hidden_test_cases: [
+      { input: '1 2 3 0 0 0\n3\n2 5 6\n3', output: '1 2 2 3 5 6' },
       { input: '1\n1\n\n0', output: '1' },
       { input: '0\n0\n1\n1', output: '1' }
+    ],
+    hidden_test_cases: [
+      { input: '4 5 6 0 0 0\n3\n1 2\n2', output: '1 2 4 5 6' },
+      { input: '1 2 3\n3\n2 5 6\n3', output: '1 2 2 3 5 6' },
+      { input: '1\n0\n2\n1', output: '1 2' }
     ],
     starter_code: {
       javascript: `const lines = require('fs').readFileSync('/dev/stdin', 'utf8').trim().split('\\n');
@@ -467,11 +473,14 @@ int main() {
       }
     ],
     test_cases: [
-      { input: '1 2 3 4 5', output: '5 4 3 2 1' }
-    ],
-    hidden_test_cases: [
+      { input: '1 2 3 4 5', output: '5 4 3 2 1' },
       { input: '1 2', output: '2 1' },
       { input: '', output: '' }
+    ],
+    hidden_test_cases: [
+      { input: '1', output: '1' },
+      { input: '1 2 3 4 5', output: '5 4 3 2 1' },
+      { input: '7 8 9', output: '9 8 7' }
     ],
     starter_code: {
       javascript: `const input = require('fs').readFileSync('/dev/stdin', 'utf8').trim();
@@ -575,11 +584,16 @@ There is a cycle in a linked list if there is some node in the list that can be 
       }
     ],
     test_cases: [
-      { input: '3 2 0 -4\n1', output: 'true' }
-    ],
-    hidden_test_cases: [
+      { input: '3 2 0 -4\n1', output: 'true' },
       { input: '1\n-1', output: 'false' },
       { input: '1 2\n0', output: 'true' }
+    ],
+    hidden_test_cases: [
+      { input: '3 2 0 -4\n1', output: 'true' },
+      { input: '1\n-1', output: 'false' },
+      { input: '1 2\n0', output: 'true' },
+      { input: '2 1\n1', output: 'true' },
+      { input: '1 2 3 4 5\n-1', output: 'false' }
     ],
     starter_code: {
       javascript: `const lines = require('fs').readFileSync('/dev/stdin', 'utf8').trim().split('\\n');
@@ -667,11 +681,14 @@ int main() {
       }
     ],
     test_cases: [
-      { input: '1 null 2 3', output: '1 3 2' }
-    ],
-    hidden_test_cases: [
+      { input: '1 null 2 3', output: '1 3 2' },
       { input: '', output: '' },
       { input: '1', output: '1' }
+    ],
+    hidden_test_cases: [
+      { input: '1 2 3', output: '1 2 3' },
+      { input: '1 null 2 null 3', output: '1 2 3' },
+      { input: '1 null 2 3 null null 4', output: '1 2 3 4' }
     ],
     starter_code: {
       javascript: `const input = require('fs').readFileSync('/dev/stdin', 'utf8').trim();
@@ -870,7 +887,9 @@ A binary tree's maximum depth is the number of nodes along the longest path from
       }
     ],
     test_cases: [
-      { input: '3 9 20 null null 15 7', output: '3' }
+      { input: '3 9 20 null null 15 7', output: '3' },
+      { input: '1', output: '1' },
+      { input: '', output: '0' }
     ],
     hidden_test_cases: [
       { input: '1 null 2', output: '2' },
@@ -1255,11 +1274,14 @@ Return the fewest number of coins that you need to make up that amount. If that 
       }
     ],
     test_cases: [
-      { input: '1 2 5\n11', output: '3' }
-    ],
-    hidden_test_cases: [
+      { input: '1 2 5\n11', output: '3' },
       { input: '2\n3', output: '-1' },
       { input: '1\n0', output: '0' }
+    ],
+    hidden_test_cases: [
+      { input: '10\n10', output: '1' },
+      { input: '1 3 4\n6', output: '2' },
+      { input: '3 4\n5', output: '-1' }
     ],
     starter_code: {
       javascript: `const lines = require('fs').readFileSync('/dev/stdin', 'utf8').trim().split('\\n');
@@ -1722,8 +1744,14 @@ export const runSeeders = async () => {
   try {
     console.log('🌱 Starting database seeding...');
 
+    // Disable foreign key checks before syncing
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+    
     // Sync database
     await sequelize.sync({ force: true });
+    
+    // Re-enable foreign key checks
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
     console.log('✅ Database synced');
 
     // Create topics
