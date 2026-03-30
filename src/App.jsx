@@ -21,6 +21,7 @@ import { FeedbackPage } from "./pages/FeedbackPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { DailyChallengesPage } from "./pages/DailyChallengesPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -173,6 +174,7 @@ function AppContent() {
           />
           <Route path="/sign-in" element={<LoginPage />} />
           <Route path="/sign-up" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/home" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/sign-in" replace />} />
         </Routes>
@@ -188,6 +190,7 @@ function AppContent() {
         <Route path="/signup" element={<Navigate to="/dashboard" replace />} />
         <Route path="/sign-in" element={<Navigate to="/dashboard" replace />} />
         <Route path="/sign-up" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/forgot-password" element={<Navigate to="/dashboard" replace />} />
         <Route path="/home" element={<HomePage />} />
 
         <Route

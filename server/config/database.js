@@ -1,4 +1,4 @@
-import { Sequelize } from 'sequelize';
+import { Sequelize, DataTypes } from 'sequelize';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -46,5 +46,23 @@ const syncDatabase = async (force = false) => {
   }
 };
 
-export { sequelize, testConnection, syncDatabase };
+const ensureAuthSchema = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface();
+    const table = await queryInterface.describeTable('users');
+
+    if (!table.phone_number) {
+      await queryInterface.addColumn('users', 'phone_number', {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        unique: true,
+      });
+      console.log('Added users.phone_number column for OTP recovery.');
+    }
+  } catch (error) {
+    console.warn('Auth schema check warning:', error.message);
+  }
+};
+
+export { sequelize, testConnection, syncDatabase, ensureAuthSchema };
 export default sequelize;

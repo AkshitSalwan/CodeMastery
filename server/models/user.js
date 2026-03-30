@@ -21,6 +21,12 @@ const User = sequelize.define('User', {
     allowNull: false,
     unique: true
   },
+  phone_number: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    unique: true,
+    field: 'phone_number'
+  },
   password_hash: {
     type: DataTypes.STRING(255),
     allowNull: false,
