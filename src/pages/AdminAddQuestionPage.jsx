@@ -50,6 +50,8 @@ export default function AdminAddQuestionPage({
   const [success, setSuccess] = useState('');
   const [testCases, setTestCases] = useState([]);
   const [hiddenTestCases, setHiddenTestCases] = useState([]);
+  const [newVisibleTestCase, setNewVisibleTestCase] = useState({ input: '', output: '', explanation: '' });
+  const [newHiddenTestCase, setNewHiddenTestCase] = useState({ input: '', output: '' });
   const [activeTab, setActiveTab] = useState('basic');
   const [newTag, setNewTag] = useState('');
   const [newConstraint, setNewConstraint] = useState('');
@@ -141,6 +143,38 @@ export default function AdminAddQuestionPage({
       ...prev,
       starter_code: { ...prev.starter_code, [language]: code }
     }));
+  };
+
+  const addVisibleTestCase = () => {
+    if (!newVisibleTestCase.input.trim() || !newVisibleTestCase.output.trim()) {
+      setError('Test case input and output are required');
+      return;
+    }
+    
+    setTestCases(prev => [...prev, newVisibleTestCase]);
+    setNewVisibleTestCase({ input: '', output: '', explanation: '' });
+    setSuccess('Visible test case added successfully!');
+    setTimeout(() => setSuccess(''), 3000);
+  };
+
+  const removeVisibleTestCase = (index) => {
+    setTestCases(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addHiddenTestCase = () => {
+    if (!newHiddenTestCase.input.trim() || !newHiddenTestCase.output.trim()) {
+      setError('Hidden test case input and output are required');
+      return;
+    }
+    
+    setHiddenTestCases(prev => [...prev, newHiddenTestCase]);
+    setNewHiddenTestCase({ input: '', output: '' });
+    setSuccess('Hidden test case added successfully!');
+    setTimeout(() => setSuccess(''), 3000);
+  };
+
+  const removeHiddenTestCase = (index) => {
+    setHiddenTestCases(prev => prev.filter((_, i) => i !== index));
   };
 
   const getAuthHeaders = () => {
@@ -297,15 +331,54 @@ export default function AdminAddQuestionPage({
       if (formData.title.length < 5) {
         throw new Error('Title must be at least 5 characters');
       }
+      if (formData.title.length < 10) {
+        throw new Error('Title should be more descriptive (at least 10 characters)');
+      }
+
       if (!formData.description.trim()) {
         throw new Error('Description is required');
       }
-      if (formData.description.length < 10) {
-        throw new Error('Description must be at least 10 characters');
+      if (formData.description.length < 20) {
+        throw new Error('Description must be at least 20 characters');
+      }
+      if (formData.description.length < 50) {
+        throw new Error('Description is too brief. Please provide detailed problem statement (at least 50 characters)');
+      }
+
+      // Require examples
+      if (formData.examples.length === 0) {
+        throw new Error('At least one example is required');
+      }
+      if (formData.examples.length < 2) {
+        throw new Error('Please provide at least 2 examples to help users understand the problem');
+      }
+
+      // Validate examples have all fields
+      for (let i = 0; i < formData.examples.length; i++) {
+        const ex = formData.examples[i];
+        if (!ex.input?.trim()) {
+          throw new Error(`Example ${i + 1}: Input is required`);
+        }
+        if (!ex.output?.trim()) {
+          throw new Error(`Example ${i + 1}: Output is required`);
+        }
       }
 
       if (testCases.length === 0) {
         throw new Error('Please generate or add test cases');
+      }
+
+      // Require constraints for non-trivial problems
+      if (formData.difficulty === 'Medium' || formData.difficulty === 'Hard') {
+        if (formData.constraints.length === 0) {
+          throw new Error(`${formData.difficulty} problems should have constraints specified`);
+        }
+      }
+
+      // Validate starter code - compulsory requirement
+      const starterCodeLanguages = Object.keys(formData.starter_code).filter(lang => formData.starter_code[lang]?.trim());
+      if (starterCodeLanguages.length === 0) {
+        throw new Error('Starter code is required! Please add boilerplate code for at least one language.');
       }
 
       console.log('✓ Form validation passed');
@@ -656,50 +729,74 @@ export default function AdminAddQuestionPage({
           <div className="space-y-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Examples</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Examples
+                  <Badge variant={formData.examples.length >= 2 ? 'secondary' : 'destructive'}>
+                    {formData.examples.length} / 2+
+                  </Badge>
+                </CardTitle>
                 <Button type="button" onClick={addExample} variant="outline" size="sm">
                   Add Example
                 </Button>
               </CardHeader>
               <CardContent className="space-y-4">
                 {formData.examples.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No examples yet. Add one to show users how to solve this problem.</p>
+                  <p className="text-sm text-yellow-600 bg-yellow-50 p-3 rounded-lg flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    At least 2 examples are required. Add examples to show users how to solve this problem.
+                  </p>
                 ) : (
-                  formData.examples.map((example, idx) => (
-                    <div key={idx} className="p-4 border border-border rounded-lg space-y-3">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium text-foreground">Example {idx + 1}</h4>
-                        <button
-                          type="button"
-                          onClick={() => removeExample(idx)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Input"
-                        value={example.input}
-                        onChange={(e) => updateExample(idx, 'input', e.target.value)}
-                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Output"
-                        value={example.output}
-                        onChange={(e) => updateExample(idx, 'output', e.target.value)}
-                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
-                      />
-                      <textarea
-                        placeholder="Explanation"
-                        value={example.explanation}
-                        onChange={(e) => updateExample(idx, 'explanation', e.target.value)}
-                        rows={2}
-                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition resize-none"
-                      />
-                    </div>
-                  ))
+                  <>
+                    {formData.examples.map((example, idx) => {
+                      const isComplete = example.input?.trim() && example.output?.trim();
+                      return (
+                        <div key={idx} className={`p-4 border rounded-lg space-y-3 ${
+                          isComplete
+                            ? 'border-green-200 bg-green-50'
+                            : 'border-red-200 bg-red-50'
+                        }`}>
+                          <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-foreground">Example {idx + 1}</h4>
+                              {isComplete ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <AlertTriangle className="w-4 h-4 text-red-600" />
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeExample(idx)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Input"
+                            value={example.input}
+                            onChange={(e) => updateExample(idx, 'input', e.target.value)}
+                            className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Output"
+                            value={example.output}
+                            onChange={(e) => updateExample(idx, 'output', e.target.value)}
+                            className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                          />
+                          <textarea
+                            placeholder="Explanation (optional but recommended)"
+                            value={example.explanation}
+                            onChange={(e) => updateExample(idx, 'explanation', e.target.value)}
+                            rows={2}
+                            className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition resize-none"
+                          />
+                        </div>
+                      );
+                    })}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -709,6 +806,7 @@ export default function AdminAddQuestionPage({
         {/* TESTS TAB */}
         {activeTab === 'tests' && (
           <div className="space-y-6">
+            {/* AI Generation Card */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -717,7 +815,7 @@ export default function AdminAddQuestionPage({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button
                     type="button"
                     onClick={generateAITestCases}
@@ -738,62 +836,171 @@ export default function AdminAddQuestionPage({
                     Generate Hints
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* Visible Test Cases */}
-                <div>
-                  <h3 className="font-medium text-foreground mb-3">Visible Test Cases ({testCases.length})</h3>
-                  {testCases.length === 0 ? (
-                    <p className="text-sm text-yellow-600 bg-yellow-50 p-3 rounded-lg flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4" />
-                      No test cases yet. Generate them with AI or add manually.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {testCases.map((tc, idx) => (
-                        <div key={idx} className="p-3 bg-muted rounded-lg border border-border">
-                          <div className="text-xs text-muted-foreground mb-2">Test Case {idx + 1}</div>
-                          <div className="space-y-1 text-sm font-mono">
-                            <div><span className="text-muted-foreground">Input:</span> {tc.input}</div>
-                            <div><span className="text-muted-foreground">Output:</span> {tc.output}</div>
-                            {tc.explanation && <div><span className="text-muted-foreground">Explanation:</span> {tc.explanation}</div>}
+            {/* Visible Test Cases Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  Visible Test Cases
+                  <Badge variant={testCases.length > 0 ? 'secondary' : 'destructive'}>
+                    {testCases.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Manual Add Form */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                  <h4 className="font-medium text-foreground">Add Visible Test Case Manually</h4>
+                  <input
+                    type="text"
+                    placeholder="Input (e.g., '2 3' or 'hello world')"
+                    value={newVisibleTestCase.input}
+                    onChange={(e) => setNewVisibleTestCase(prev => ({ ...prev, input: e.target.value }))}
+                    className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Output (e.g., '5' or 'HELLO WORLD')"
+                    value={newVisibleTestCase.output}
+                    onChange={(e) => setNewVisibleTestCase(prev => ({ ...prev, output: e.target.value }))}
+                    className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                  />
+                  <textarea
+                    placeholder="Explanation (optional)"
+                    value={newVisibleTestCase.explanation}
+                    onChange={(e) => setNewVisibleTestCase(prev => ({ ...prev, explanation: e.target.value }))}
+                    rows={2}
+                    className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition resize-none"
+                  />
+                  <Button
+                    type="button"
+                    onClick={addVisibleTestCase}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Add Visible Test Case
+                  </Button>
+                </div>
+
+                {/* Display Test Cases */}
+                {testCases.length === 0 ? (
+                  <p className="text-sm text-yellow-600 bg-yellow-50 p-3 rounded-lg flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    No visible test cases yet. Generate them with AI or add manually.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {testCases.map((tc, idx) => (
+                      <div key={idx} className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold bg-green-200 text-green-900 px-2 py-1 rounded">
+                              Test Case {idx + 1}
+                            </span>
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => removeVisibleTestCase(idx)}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium"
+                          >
+                            Remove
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Hidden Test Cases */}
-                <div>
-                  <h3 className="font-medium text-foreground mb-3">Hidden Test Cases ({hiddenTestCases.length})</h3>
-                  {hiddenTestCases.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No hidden test cases generated yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {hiddenTestCases.map((tc, idx) => (
-                        <div key={idx} className="p-2 bg-muted rounded text-xs">
-                          {idx + 1}. Input: {tc.input} → Output: {tc.output}
+                        <div className="space-y-1 text-sm font-mono">
+                          <div><span className="text-muted-foreground">Input:</span> {tc.input}</div>
+                          <div><span className="text-muted-foreground">Output:</span> {tc.output}</div>
+                          {tc.explanation && <div><span className="text-muted-foreground">Explanation:</span> {tc.explanation}</div>}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Hints */}
-                {formData.hints.length > 0 && (
-                  <div>
-                    <h3 className="font-medium text-foreground mb-2">Hints</h3>
-                    <div className="space-y-2">
-                      {formData.hints.map((hint, idx) => (
-                        <div key={idx} className="p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
-                          {idx + 1}. {hint}
-                        </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Hidden Test Cases Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  Hidden Test Cases
+                  <Badge variant="outline">
+                    {hiddenTestCases.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Manual Add Form */}
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg space-y-3">
+                  <h4 className="font-medium text-foreground">Add Hidden Test Case Manually</h4>
+                  <input
+                    type="text"
+                    placeholder="Input"
+                    value={newHiddenTestCase.input}
+                    onChange={(e) => setNewHiddenTestCase(prev => ({ ...prev, input: e.target.value }))}
+                    className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Output"
+                    value={newHiddenTestCase.output}
+                    onChange={(e) => setNewHiddenTestCase(prev => ({ ...prev, output: e.target.value }))}
+                    className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                  />
+                  <Button
+                    type="button"
+                    onClick={addHiddenTestCase}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Add Hidden Test Case
+                  </Button>
+                </div>
+
+                {/* Display Hidden Test Cases */}
+                {hiddenTestCases.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No hidden test cases yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {hiddenTestCases.map((tc, idx) => (
+                      <div key={idx} className="p-3 bg-purple-50 border border-purple-200 rounded-lg flex justify-between items-start">
+                        <div className="space-y-1 text-sm font-mono flex-1">
+                          <div><span className="text-muted-foreground">Input:</span> {tc.input}</div>
+                          <div><span className="text-muted-foreground">Output:</span> {tc.output}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeHiddenTestCase(idx)}
+                          className="text-red-500 hover:text-red-700 text-sm font-medium ml-2"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Hints Card */}
+            {formData.hints.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Hints</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {formData.hints.map((hint, idx) => (
+                      <div key={idx} className="p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
+                        {idx + 1}. {hint}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
@@ -802,12 +1009,49 @@ export default function AdminAddQuestionPage({
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Starter Code & Solution</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Starter Code & Solution</span>
+                  <Badge className="bg-red-500 text-white">Required</Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Status of Starter Code */}
+                <div className={`p-4 rounded-lg border-2 ${
+                  Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim())
+                    ? 'border-green-200 bg-green-50'
+                    : 'border-red-200 bg-red-50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    {Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim()) ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                    )}
+                    <h4 className={`font-medium ${
+                      Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim())
+                        ? 'text-green-900'
+                        : 'text-red-900'
+                    }`}>
+                      Starter Code Status
+                    </h4>
+                  </div>
+                  <p className={`text-sm ${
+                    Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim())
+                      ? 'text-green-800'
+                      : 'text-red-800'
+                  }`}>
+                    {Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim())
+                      ? `✓ Boilerplate code provided for: ${Object.keys(formData.starter_code)
+                          .filter(lang => formData.starter_code[lang]?.trim())
+                          .map(lang => lang.charAt(0).toUpperCase() + lang.slice(1))
+                          .join(', ')}`
+                      : '⚠ Boilerplate code is REQUIRED. You must add starter code for at least one language.'}
+                  </p>
+                </div>
+
                 {/* Starter Code */}
                 <div>
-                  <h3 className="font-medium text-foreground mb-3">Starter Code</h3>
+                  <h3 className="font-medium text-foreground mb-3">Starter Code <span className="text-red-500">*</span></h3>
                   <div className="mb-3">
                     <Button
                       type="button"
@@ -817,6 +1061,7 @@ export default function AdminAddQuestionPage({
                       className="flex items-center gap-2"
                     >
                       {generatingStarterCode && <Loader2 className="w-4 h-4 animate-spin" />}
+                      <Sparkles className="w-4 h-4" />
                       Generate Starter Code with AI
                     </Button>
                   </div>
@@ -828,15 +1073,19 @@ export default function AdminAddQuestionPage({
                         onClick={() => setSelectedLanguage(lang)}
                         variant={selectedLanguage === lang ? 'default' : 'outline'}
                         size="sm"
+                        className={formData.starter_code[lang]?.trim() ? 'border-green-500 border-2' : ''}
                       >
-                        {lang}
+                        <span>{lang.charAt(0).toUpperCase() + lang.slice(1)}</span>
+                        {formData.starter_code[lang]?.trim() && (
+                          <CheckCircle2 className="w-3 h-3 ml-1 text-green-600" />
+                        )}
                       </Button>
                     ))}
                   </div>
                   <textarea
                     value={formData.starter_code[selectedLanguage] || ''}
                     onChange={(e) => updateStarterCode(selectedLanguage, e.target.value)}
-                    placeholder={`Enter ${selectedLanguage} starter code...`}
+                    placeholder={`Enter ${selectedLanguage} boilerplate code (required)...`}
                     rows={8}
                     className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground font-mono placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition resize-none"
                   />
@@ -862,18 +1111,202 @@ export default function AdminAddQuestionPage({
         )}
 
         {/* Submit Button */}
-        <div className="flex gap-3">
-          <Button
-            type="submit"
-            disabled={loading || !testCases.length}
-            className="flex items-center gap-2"
-          >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            Create Question
-          </Button>
-          <Button type="button" variant="outline" onClick={() => navigate(redirectTo)}>
-            Cancel
-          </Button>
+        <div className="space-y-3">
+          {/* Quality Check Section */}
+          <Card className="border-blue-200 bg-blue-50">
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2 text-blue-900">
+                <AlertCircle className="w-4 h-4" />
+                Problem Quality Checklist
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                <div className={`flex items-center gap-2 p-2 rounded ${
+                  formData.title && formData.title.length >= 10
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {formData.title && formData.title.length >= 10 ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  <span>Descriptive Title (10+ chars)</span>
+                </div>
+
+                <div className={`flex items-center gap-2 p-2 rounded ${
+                  formData.description && formData.description.length >= 50
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {formData.description && formData.description.length >= 50 ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  <span>Detailed Description (50+ chars)</span>
+                </div>
+
+                <div className={`flex items-center gap-2 p-2 rounded ${
+                  formData.examples.length >= 2
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {formData.examples.length >= 2 ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  <span>Examples ({formData.examples.length} of 2+)</span>
+                </div>
+
+                <div className={`flex items-center gap-2 p-2 rounded ${
+                  testCases.length > 0
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {testCases.length > 0 ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  <span>Test Cases ({testCases.length} generated)</span>
+                </div>
+
+                <div className={`flex items-center gap-2 p-2 rounded ${
+                  (formData.difficulty === 'Easy' || formData.constraints.length > 0)
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {(formData.difficulty === 'Easy' || formData.constraints.length > 0) ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  <span>Constraints {formData.difficulty !== 'Easy' && '(required)'}</span>
+                </div>
+
+                <div className={`flex items-center gap-2 p-2 rounded ${
+                  Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim())
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim()) ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  <span>Boilerplate Code (required)</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Main Validation Status */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className={`p-3 rounded-lg flex items-center gap-2 ${
+              formData.title && formData.title.length >= 10
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              {formData.title && formData.title.length >= 10 ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              )}
+              <span className="text-sm font-medium">Title</span>
+            </div>
+
+            <div className={`p-3 rounded-lg flex items-center gap-2 ${
+              formData.description && formData.description.length >= 50
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              {formData.description && formData.description.length >= 50 ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              )}
+              <span className="text-sm font-medium">Description</span>
+            </div>
+
+            <div className={`p-3 rounded-lg flex items-center gap-2 ${
+              formData.examples.length >= 2
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              {formData.examples.length >= 2 ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              )}
+              <span className="text-sm font-medium">Examples</span>
+            </div>
+
+            <div className={`p-3 rounded-lg flex items-center gap-2 ${
+              testCases.length > 0
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              {testCases.length > 0 ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              )}
+              <span className="text-sm font-medium">Test Cases</span>
+            </div>
+
+            <div className={`p-3 rounded-lg flex items-center gap-2 ${
+              (formData.difficulty === 'Easy' || formData.constraints.length > 0)
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              {(formData.difficulty === 'Easy' || formData.constraints.length > 0) ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              )}
+              <span className="text-sm font-medium">Constraints</span>
+            </div>
+
+            <div className={`p-3 rounded-lg flex items-center gap-2 ${
+              Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim())
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              {Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim()) ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              )}
+              <span className="text-sm font-medium">Boilerplate</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              type="submit"
+              disabled={
+                loading ||
+                !formData.title ||
+                formData.title.length < 10 ||
+                !formData.description ||
+                formData.description.length < 50 ||
+                formData.examples.length < 2 ||
+                testCases.length === 0 ||
+                (formData.difficulty !== 'Easy' && formData.constraints.length === 0) ||
+                !Object.keys(formData.starter_code).some(lang => formData.starter_code[lang]?.trim())
+              }
+              className="flex items-center gap-2"
+            >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              Create Question
+            </Button>
+            <Button type="button" variant="outline" onClick={() => navigate(redirectTo)}>
+              Cancel
+            </Button>
+          </div>
         </div>
       </form>
     </div>

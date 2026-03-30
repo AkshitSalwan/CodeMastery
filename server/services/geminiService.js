@@ -428,6 +428,55 @@ Keep the explanation concise but useful.`;
 };
 
 /**
+ * Analyze test cases to understand input/output format
+ * @param {array} testCases - Array of test case objects
+ * @param {array} examples - Array of example objects
+ * @returns {string} - Analysis of I/O format
+ */
+const analyzeIOFormat = (testCases = [], examples = []) => {
+  if (examples.length === 0 && testCases.length === 0) {
+    return 'Format Unknown: Please provide examples or test cases';
+  }
+
+  const sample = examples.length > 0 ? examples[0] : testCases[0];
+  const inputStr = sample.input || '';
+  const outputStr = sample.output || '';
+
+  let analysis = '';
+  
+  // Analyze input format
+  if (inputStr.includes('\n')) {
+    analysis += `- Input: Multiple lines (one value per line or multi-line input)\n`;
+  } else if (inputStr.includes(' ')) {
+    analysis += `- Input: Space-separated values on a single line\n`;
+  } else if (inputStr.match(/^\d+$/)) {
+    analysis += `- Input: Single integer\n`;
+  } else {
+    analysis += `- Input: String or custom format\n`;
+  }
+
+  // Analyze output format
+  if (outputStr.includes('\n')) {
+    analysis += `- Output: Multiple lines (list or formatted output)\n`;
+  } else if (outputStr.match(/^\d+$/)) {
+    analysis += `- Output: Single integer\n`;
+  } else if (outputStr.match(/^(true|false|yes|no)$/i)) {
+    analysis += `- Output: Boolean or yes/no\n`;
+  } else if (outputStr.includes('[') && outputStr.includes(']')) {
+    analysis += `- Output: Array or list format\n`;
+  } else {
+    analysis += `- Output: String or custom format\n`;
+  }
+
+  // Number of test cases for context
+  analysis += `- Visible Test Cases: ${testCases.length.toString()}\n`;
+  analysis += `- Sample Input: "${inputStr.substring(0, 50)}${inputStr.length > 50 ? '...' : ''}"\n`;
+  analysis += `- Sample Output: "${outputStr.substring(0, 50)}${outputStr.length > 50 ? '...' : ''}"`;
+
+  return analysis;
+};
+
+/**
  * Generate starter code templates for supported languages.
  * @param {object} problemData - Problem details and test case context
  * @returns {Promise<object>} - starter_code object keyed by language
@@ -443,32 +492,55 @@ export const generateStarterCode = async (problemData) => {
     languages = ['javascript', 'python', 'java', 'cpp'],
   } = problemData;
 
-  const prompt = `You are generating interview-friendly starter code templates.
+  // Analyze test cases to understand input/output format
+  const inputOutputAnalysis = analyzeIOFormat(test_cases, examples);
 
-Problem Title: ${title}
-Problem Description: ${description}
+  const prompt = `You are an expert coding interview instructor. Generate professional starter code templates that include proper I/O handling.
+
+PROBLEM DETAILS:
+Title: ${title}
+Description: ${description}
 Difficulty: ${difficulty || 'Medium'}
-Constraints: ${JSON.stringify(constraints)}
-Examples: ${JSON.stringify(examples)}
-Visible Test Cases: ${JSON.stringify(test_cases)}
-Languages: ${JSON.stringify(languages)}
+Constraints: ${constraints.length > 0 ? constraints.join(', ') : 'None specified'}
+
+EXAMPLES & TEST CASES:
+${examples.map((ex, i) => `Example ${i + 1}: Input: "${ex.input}" → Output: "${ex.output}"`).join('\n')}
+
+First Visible Test Cases:
+${test_cases.slice(0, 2).map((tc, i) => `Test ${i + 1}: Input: "${tc.input}" → Output: "${tc.output}"`).join('\n')}
+
+INPUT/OUTPUT FORMAT ANALYSIS:
+${inputOutputAnalysis}
 
 Generate ONLY valid JSON in this exact shape:
 {
   "starter_code": {
-    "javascript": "...",
-    "python": "...",
-    "java": "...",
-    "cpp": "..."
+    "javascript": "complete starter code for this language",
+    "python": "complete starter code for this language",
+    "java": "complete starter code for this language",
+    "cpp": "complete starter code for this language"
   }
 }
 
-Requirements:
-1. Return starter code only for requested languages.
-2. Each template must include a function signature and TODO comments.
-3. Keep templates runnable/compilable skeletons where possible.
-4. Do NOT include complete solution logic.
-5. Keep language syntax correct and concise.`;
+CRITICAL REQUIREMENTS:
+1. ONLY return the languages requested. Include all of: ${languages.join(', ')}
+2. Each template MUST be a complete, compilable/runnable scaffold.
+3. Include a main entry point that:
+   - Reads input appropriately (stdin, function parameter, etc.)
+   - Parses the input based on the format shown in examples
+   - Calls a solve() function with parsed data
+   - Outputs results in the exact format shown
+4. The solve() function should have TODO comments for logic implementation
+5. Include helper functions or parsing logic as scaffolds - DO NOT implement the solution logic
+6. Make the templates realistic for coding interviews - they should handle the I/O properly
+7. Language-specific details:
+   - JavaScript: Use readline or process.stdin, export solve function
+   - Python: Use input() and sys.stdin, define solve function
+   - Java: Use Scanner for input, class Solution with main method
+   - C++: Use cin for input, complete program with main function
+8. Do NOT include the actual solution algorithm - only the scaffold
+
+Generate professional, production-ready starter code that handles I/O correctly.`;
 
   const generatedText = await callGemini(prompt);
   if (!generatedText) {
