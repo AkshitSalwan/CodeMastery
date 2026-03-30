@@ -491,8 +491,10 @@ export function AuthProvider({ children }) {
   const login = async ({ email, password, rememberMe = true }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     
-    // Try backend API
-    const apiUrl = '/api/auth/login';
+    // Try backend API - use correct backend URL for localhost
+    const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+      ? 'http://localhost:4000/api/auth/login'
+      : '/api/auth/login';
     
     try {
       const response = await fetch(apiUrl, {

@@ -331,7 +331,15 @@ export function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="day" />
                   <YAxis allowDecimals={false} />
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1a1a1a',
+                      border: '1px solid #333',
+                      borderRadius: '8px',
+                      color: '#fff',
+                    }}
+                    cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                  />
                   <Bar dataKey="solved" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
