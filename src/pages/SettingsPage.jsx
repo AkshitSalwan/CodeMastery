@@ -398,8 +398,8 @@ export function SettingsPage() {
                 </div>
 
                 <div className="rounded-2xl border border-border/70 bg-secondary/30 p-4 text-sm text-muted-foreground">
-                  Dev note: forgot-password is available from the sign-in screen and shows a temporary reset
-                  code locally instead of sending an email.
+                  Forgot-password is available from the sign-in screen. It now uses OTP delivery to email
+                  when Resend is configured, and shows a temporary development OTP locally otherwise.
                 </div>
 
                 {passwordError ? <p className="text-sm text-red-500">{passwordError}</p> : null}

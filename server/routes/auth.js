@@ -1,17 +1,22 @@
 import express from 'express';
 import { User } from '../models/index.js';
 import { generateToken, requireAuth, getOrCreateUser } from '../middleware/auth.js';
-import { Op } from 'sequelize';
+import { Op, UniqueConstraintError, ValidationError as SequelizeValidationError } from 'sequelize';
+import { clearOtp, generateOtp, isOtpExpired, readOtp, sendOtp, storeOtp } from '../services/passwordResetService.js';
 
 const router = express.Router();
+
+const isEmailIdentifier = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 
 // Register route
 router.post('/register', async (req, res) => {
   try {
     const { email, username, password } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedUsername = String(username || '').trim();
 
     // Validation
-    if (!email || !username || !password) {
+    if (!normalizedEmail || !normalizedUsername || !password) {
       return res.status(400).json({ error: 'Email, username, and password are required' });
     }
 
@@ -22,7 +27,10 @@ router.post('/register', async (req, res) => {
     // Check if user exists
     const existingUser = await User.findOne({
       where: { 
-        [Op.or]: [{ email }, { username }]
+        [Op.or]: [
+          { email: normalizedEmail },
+          { username: normalizedUsername },
+        ]
       }
     });
 
@@ -30,14 +38,13 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email or username already exists' });
     }
 
-    // Create user
-    const user = await User.create({
-      email,
-      username,
+    // Build first so password_hash can be set before validation/insert.
+    const user = User.build({
+      email: normalizedEmail,
+      username: normalizedUsername,
       role: 'learner'
     });
 
-    // Set password
     await user.setPassword(password);
     await user.save();
 
@@ -51,6 +58,13 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Register error:', error);
+    if (error instanceof UniqueConstraintError) {
+      return res.status(400).json({ error: 'Email or username already exists' });
+    }
+    if (error instanceof SequelizeValidationError) {
+      const firstMessage = error.errors?.[0]?.message;
+      return res.status(400).json({ error: firstMessage || 'Invalid registration data' });
+    }
     res.status(500).json({ error: 'Registration failed' });
   }
 });
@@ -59,14 +73,15 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
     // Validation
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
     // Find user
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email: normalizedEmail } });
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
@@ -93,6 +108,97 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+router.post('/forgot-password/request-otp', async (req, res) => {
+  try {
+    const { identifier } = req.body || {};
+    const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
+
+    if (!normalizedIdentifier || !isEmailIdentifier(normalizedIdentifier)) {
+      return res.status(400).json({ error: 'A valid email address is required' });
+    }
+
+    const user = await User.findOne({ where: { email: normalizedIdentifier } });
+
+    if (!user) {
+      return res.status(404).json({ error: 'No account found for that email address' });
+    }
+
+    const otp = generateOtp();
+    const expiresAt = storeOtp({
+      identifier: normalizedIdentifier,
+      userId: user.id,
+      otp,
+    });
+    const delivery = await sendOtp({
+      user,
+      identifier: normalizedIdentifier,
+      otp,
+    });
+
+    return res.json({
+      message: 'OTP sent to your email address',
+      expiresAt: expiresAt.toISOString(),
+      delivery,
+    });
+  } catch (error) {
+    console.error('Forgot password request error:', error);
+    return res.status(500).json({ error: 'Unable to send OTP right now' });
+  }
+});
+
+router.post('/forgot-password/reset', async (req, res) => {
+  try {
+    const { identifier, otp, newPassword } = req.body || {};
+    const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
+    const trimmedOtp = String(otp || '').trim();
+    const trimmedPassword = String(newPassword || '');
+
+    if (!normalizedIdentifier || !trimmedOtp || !trimmedPassword) {
+      return res.status(400).json({ error: 'Email, OTP, and new password are required' });
+    }
+
+    if (!isEmailIdentifier(normalizedIdentifier)) {
+      return res.status(400).json({ error: 'A valid email address is required' });
+    }
+
+    if (trimmedPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const entry = readOtp(normalizedIdentifier);
+    if (!entry) {
+      return res.status(400).json({ error: 'Request a fresh OTP first' });
+    }
+
+    if (isOtpExpired(entry)) {
+      clearOtp(normalizedIdentifier);
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    if (entry.otp !== trimmedOtp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    const user = await User.findOne({ where: { email: normalizedIdentifier } });
+
+    if (!user || user.id !== entry.userId) {
+      clearOtp(normalizedIdentifier);
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    await user.setPassword(trimmedPassword);
+    await user.save();
+    clearOtp(normalizedIdentifier);
+
+    return res.json({
+      message: 'Password updated successfully',
+    });
+  } catch (error) {
+    console.error('Forgot password reset error:', error);
+    return res.status(500).json({ error: 'Unable to reset password right now' });
   }
 });
 

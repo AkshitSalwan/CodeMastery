@@ -18,7 +18,7 @@ import userdataRouter from './routes/userdata.js';
 import badgeRouter from './routes/badges.js';
 import feedbackRouter from './routes/feedback.js';
 import contestsRouter from './routes/contests.js';
-import { testConnection, syncDatabase } from './config/database.js';
+import { testConnection, syncDatabase, ensureAuthSchema } from './config/database.js';
 import { createAdminUser } from './seeders/createAdminUser.js';
 import { createBadges } from './seeders/createBadges.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -239,6 +239,7 @@ function startServer(port = Number(process.env.PORT) || 4000) {
       
       // Sync database schema
       await syncDatabase();
+      await ensureAuthSchema();
       
       // Create admin user if it doesn't exist
       await createAdminUser();

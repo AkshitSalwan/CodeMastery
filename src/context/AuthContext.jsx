@@ -165,6 +165,62 @@ const getNextReviewAt = (reviewCount = 0, fromDate = new Date()) => {
 const getAvatarForEmail = (email) =>
   `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(email || 'CodeMastery')}`;
 
+const getAuthApiBaseUrl = () =>
+  typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:4000/api/auth'
+    : '/api/auth';
+
+const createUsernameFromSignup = (name, email) => {
+  const baseCandidate = String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  const emailPrefix = String(email || '').split('@')[0]?.toLowerCase() || 'user';
+  const fallbackCandidate = emailPrefix.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const base = (baseCandidate || fallbackCandidate || 'user').slice(0, 70);
+
+  return `${base}_${Date.now()}`;
+};
+
+const getDisplayNameFromUsername = (username, email) => {
+  const cleanedUsername = String(username || '')
+    .trim()
+    .replace(/_\d{10,}$/, '')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+
+  if (cleanedUsername) {
+    return cleanedUsername;
+  }
+
+  return String(email || '').split('@')[0] || 'User';
+};
+
+const buildBackendAccount = (backendUser, password = '') => ({
+  id: backendUser.id,
+  email: backendUser.email,
+  name: getDisplayNameFromUsername(backendUser.username, backendUser.email),
+  password,
+  username: backendUser.username,
+  role: backendUser.role,
+  createdAt: backendUser.created_at || new Date().toISOString(),
+  avatar: backendUser.avatar || getAvatarForEmail(backendUser.email),
+  profile: {
+    ...DEFAULT_PROFILE,
+    id: backendUser.id,
+    email: backendUser.email,
+    name: getDisplayNameFromUsername(backendUser.username, backendUser.email),
+    avatar: backendUser.avatar || getAvatarForEmail(backendUser.email),
+    createdAt: backendUser.created_at || new Date().toISOString(),
+    role: backendUser.role || 'learner',
+    bio: backendUser.bio || '',
+    security: {
+      ...DEFAULT_PROFILE.security,
+    },
+  },
+});
+
 const deriveRole = (storedProfile, email) => {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const adminSettings = readAdminSettings();
@@ -444,60 +500,68 @@ export function AuthProvider({ children }) {
   const signup = async ({ name, email, password, rememberMe = true }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const trimmedPassword = String(password || '');
-    const displayName = String(name || '').trim() || normalizedEmail.split('@')[0] || 'User';
 
     if (!normalizedEmail || !trimmedPassword) {
       throw new Error('Email and password are required.');
     }
 
-    const users = readUsers();
-    if (users.some((entry) => String(entry.email).toLowerCase() === normalizedEmail)) {
-      throw new Error('An account with this email already exists.');
-    }
+    const apiBaseUrl = getAuthApiBaseUrl();
+    const username = createUsernameFromSignup(name, normalizedEmail);
 
-    const now = new Date().toISOString();
-    const userId = `cm-user-${Date.now()}`;
-    const account = {
-      id: userId,
-      email: normalizedEmail,
-      name: displayName,
-      password: trimmedPassword,
-      createdAt: now,
-      avatar: getAvatarForEmail(normalizedEmail),
-      profile: {
-        ...DEFAULT_PROFILE,
-        id: userId,
-        email: normalizedEmail,
-        name: displayName,
-        avatar: getAvatarForEmail(normalizedEmail),
-        createdAt: now,
+    try {
+      const response = await fetch(`${apiBaseUrl}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          username,
+          password: trimmedPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Unable to create account.');
+      }
+
+      if (!data.token || !data.user) {
+        throw new Error('Registration succeeded but no authentication data was returned.');
+      }
+
+      const loginTimestamp = new Date().toISOString();
+      const backendAccount = buildBackendAccount(data.user, trimmedPassword);
+      const nextProfile = mergeProfileUpdates(buildProfileFromAccount(backendAccount), {
+        name: String(name || '').trim() || backendAccount.name,
         security: {
-          ...DEFAULT_PROFILE.security,
           rememberMe,
-          lastLoginAt: now,
-          lastPasswordChangedAt: now,
+          lastLoginAt: loginTimestamp,
+          lastPasswordChangedAt: loginTimestamp,
         },
-      },
-    };
+      });
 
-    const nextProfile = buildProfileFromAccount(account);
-    persistProfile(nextProfile, {
-      nextPassword: trimmedPassword,
-      rememberMe,
-      loginTimestamp: now,
-    });
+      persistProfile(nextProfile, {
+        nextPassword: trimmedPassword,
+        rememberMe,
+        loginTimestamp,
+      });
+
+      localStorage.setItem('auth-token', data.token);
+    } catch (apiError) {
+      console.error('Backend signup error:', apiError);
+      throw new Error(
+        apiError.message ||
+          'Unable to connect to authentication server. Please ensure the backend server is running on port 4000.'
+      );
+    }
   };
 
   const login = async ({ email, password, rememberMe = true }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
-    
-    // Try backend API - use correct backend URL for localhost
-    const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-      ? 'http://localhost:4000/api/auth/login'
-      : '/api/auth/login';
+    const apiBaseUrl = getAuthApiBaseUrl();
     
     try {
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`${apiBaseUrl}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: normalizedEmail, password })
@@ -514,22 +578,7 @@ export function AuthProvider({ children }) {
         throw new Error('No authentication token received from server');
       }
 
-      const backendUser = {
-        id: data.user.id,
-        email: data.user.email,
-        password,
-        username: data.user.username,
-        role: data.user.role,
-        profile: {
-          role: data.user.role,
-          totalPoints: 0,
-          streak: 0,
-          problemsSolved: 0,
-          bio: data.user.bio || '',
-          avatar: data.user.avatar || 'https://api.dicebear.com/7.x/thumbs/svg?seed=' + data.user.email,
-          bookmarkedProblems: [],
-        }
-      };
+      const backendUser = buildBackendAccount(data.user, password);
 
       const loginTimestamp = new Date().toISOString();
       const nextProfile = mergeProfileUpdates(buildProfileFromAccount(backendUser), {
@@ -598,85 +647,56 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const requestPasswordReset = async (email) => {
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-    const users = readUsers();
-    const account = users.find((entry) => String(entry.email || '').trim().toLowerCase() === normalizedEmail);
+  const requestPasswordReset = async (identifier) => {
+    const normalizedIdentifier = String(identifier || '').trim();
+    const apiBaseUrl = getAuthApiBaseUrl();
 
-    if (!account) {
-      throw new Error('No account exists for that email yet.');
+    if (!normalizedIdentifier) {
+      throw new Error('Enter your email address.');
     }
 
-    const resetCode = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-    const otherRequests = readPasswordResets().filter((entry) => entry.email !== normalizedEmail);
+    const response = await fetch(`${apiBaseUrl}/forgot-password/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: normalizedIdentifier }),
+    });
 
-    writePasswordResets([
-      ...otherRequests,
-      {
-        email: normalizedEmail,
-        resetCode,
-        expiresAt,
-        createdAt: new Date().toISOString(),
-      },
-    ]);
+    const data = await response.json().catch(() => ({}));
 
-    return {
-      email: normalizedEmail,
-      resetCode,
-      expiresAt,
-    };
+    if (!response.ok) {
+      throw new Error(data.error || 'Unable to send OTP.');
+    }
+
+    return data;
   };
 
-  const resetPasswordForDev = async ({ email, resetCode, newPassword }) => {
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+  const resetPasswordForDev = async ({ identifier, email, resetCode, newPassword }) => {
+    const normalizedIdentifier = String(identifier || email || '').trim();
     const trimmedCode = String(resetCode || '').trim();
     const trimmedPassword = String(newPassword || '');
+    const apiBaseUrl = getAuthApiBaseUrl();
 
     if (!trimmedPassword || trimmedPassword.length < 6) {
       throw new Error('Use at least 6 characters for the new password.');
     }
 
-    const requests = readPasswordResets();
-    const activeRequest = requests.find((entry) => entry.email === normalizedEmail);
-
-    if (!activeRequest) {
-      throw new Error('Generate a reset code first.');
-    }
-
-    if (new Date(activeRequest.expiresAt).getTime() < Date.now()) {
-      throw new Error('That reset code has expired. Generate a fresh one.');
-    }
-
-    if (activeRequest.resetCode !== trimmedCode) {
-      throw new Error('Reset code is invalid.');
-    }
-
-    const users = readUsers();
-    const accountIndex = users.findIndex(
-      (entry) => String(entry.email || '').trim().toLowerCase() === normalizedEmail
-    );
-
-    if (accountIndex === -1) {
-      throw new Error('No account exists for that email yet.');
-    }
-
-    const changedAt = new Date().toISOString();
-    const nextProfile = mergeProfileUpdates(buildProfileFromAccount(users[accountIndex]), {
-      security: {
-        lastPasswordChangedAt: changedAt,
-      },
+    const response = await fetch(`${apiBaseUrl}/forgot-password/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: normalizedIdentifier,
+        otp: trimmedCode,
+        newPassword: trimmedPassword,
+      }),
     });
 
-    users[accountIndex] = {
-      ...users[accountIndex],
-      password: trimmedPassword,
-      profile: nextProfile,
-    };
+    const data = await response.json().catch(() => ({}));
 
-    writeUsers(users);
-    writePasswordResets(requests.filter((entry) => entry.email !== normalizedEmail));
-    hydrateFromStorage();
+    if (!response.ok) {
+      throw new Error(data.error || 'Unable to reset password.');
+    }
+
+    return data;
   };
 
   const toggleBookmark = (problemId) => {
@@ -872,6 +892,9 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     clearStoredSession();
+    try {
+      localStorage.removeItem('auth-token');
+    } catch {}
     setProfile(null);
   };
 
