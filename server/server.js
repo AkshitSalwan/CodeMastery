@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import path from 'path';
+import http from 'http';
 import { fileURLToPath } from 'url';
 import judgeService from './services/judgeService.js';
 import compareOutput from './utils/compareOutput.js';
@@ -21,6 +22,7 @@ import { testConnection, syncDatabase } from './config/database.js';
 import { createAdminUser } from './seeders/createAdminUser.js';
 import { createBadges } from './seeders/createBadges.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { initializeSocket } from './socket/index.js';
 
 function buildJavaDriver(code) {
   // Remove any existing Main class if present (handles both single and multi-line)
@@ -223,6 +225,11 @@ function createApp() {
 
 function startServer(port = Number(process.env.PORT) || 4000) {
   const app = createApp();
+  const server = http.createServer(app);
+  
+  // Initialize socket.io with CORS configuration
+  const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'];
+  initializeSocket(server, allowedOrigins);
 
   // Initialize database before starting server
   (async () => {
@@ -240,7 +247,7 @@ function startServer(port = Number(process.env.PORT) || 4000) {
       await createBadges();
       
       // Start listening
-      app.listen(port, () => {
+      server.listen(port, () => {
         console.log(`Server listening on http://localhost:${port}`);
       });
     } catch (error) {

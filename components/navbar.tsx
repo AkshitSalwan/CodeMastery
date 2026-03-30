@@ -37,11 +37,16 @@ export function Navbar() {
     <nav className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         
-        <Link to="/dashboard" className="text-xl font-bold text-accent">
-          CodeMastery
+        <Link to="/dashboard" className="flex items-center gap-1">
+          <img 
+            src="/CodeMastery_brain.png" 
+            alt="CodeMastery_brain" 
+            className="h-24 w-24 object-contain"
+          />
+          <span className="text-2xl font-bold text-accent hidden sm:inline">CodeMastery</span>
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1">
           
           <Button
             variant="ghost"
