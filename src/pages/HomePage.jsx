@@ -34,8 +34,8 @@ export function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center">
+      <section className="pt-24 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-80px)] flex items-center">
+        <div className="max-w-4xl mx-auto text-center w-full">
           <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6">
             Master Data Structures & Algorithms
           </h1>
@@ -127,9 +127,49 @@ export function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-background py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto text-center text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} CodeMastery. All rights reserved.</p>
+      <footer className="border-t border-border bg-background/95 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid gap-10 md:grid-cols-3">
+            <div>
+              <h3 className="text-2xl font-bold text-accent">CodeMastery</h3>
+              <p className="mt-3 text-sm text-muted-foreground max-w-xs">
+                Master DSA with practical problems, guided learning, and consistent daily progress.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold tracking-wide uppercase text-foreground mb-4">
+                Quick Links
+              </h4>
+              <div className="flex flex-col gap-3 text-sm">
+                <Link to="/home" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Home
+                </Link>
+                <Link to="/sign-in" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Sign In
+                </Link>
+                <Link to="/sign-up" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Get Started
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold tracking-wide uppercase text-foreground mb-4">
+                Learn
+              </h4>
+              <div className="flex flex-col gap-3 text-sm text-muted-foreground">
+                <p>Arrays, Strings, Trees, Graphs</p>
+                <p>Dynamic Programming</p>
+                <p>Contests and Daily Challenges</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-10 pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} CodeMastery. All rights reserved.</p>
+            <p>Built for focused, real-world coding practice.</p>
+          </div>
         </div>
       </footer>
     </div>
