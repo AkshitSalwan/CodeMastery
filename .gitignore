@@ -11,3 +11,4 @@ node_modules/
 .vercel
 \n# server database file\nserver/database.sqlite\n
 .env
+.env
