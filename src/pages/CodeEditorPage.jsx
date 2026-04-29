@@ -1029,20 +1029,25 @@ export function CodeEditorPage() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <CardContent className="max-h-32 overflow-y-auto py-3">
+                    <CardContent className="max-h-80 overflow-y-auto py-3">
                       <div className="space-y-2">
                         {testResults.map((result, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-xs">
-                            {result.passed ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-red-500" />
-                            )}
-                            <span>Test {idx + 1}:</span>
-                            <span className={result.passed ? 'text-green-600' : 'text-red-600'}>
-                              {result.passed ? 'Passed' : 'Failed'}
-                            </span>
-                            {result.time && <span className="text-muted-foreground">({result.time}s)</span>}
+                          <div key={idx} className="flex items-start gap-3 text-xs p-2 rounded-md border border-border/60 bg-secondary/20">
+                            <div className="flex items-center gap-2 min-w-fit pt-0.5">
+                              {result.passed ? (
+                                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-500 hrink-0" />
+                              )}
+                              <span className="font-medium">Test {idx + 1}:</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className={`font-medium ${result.passed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {result.passed ? 'Passed' : 'Failed'}
+                              </span>
+                              {result.time && <span className="text-muted-foreground ml-2">({result.time}s)</span>}
+                              {result.memory && <span className="text-muted-foreground ml-2">({result.memory}KB)</span>}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1065,6 +1070,45 @@ export function CodeEditorPage() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Submission Test Results Table */}
+                {isSubmitted && testResults.length > 0 && (
+                  <Card className="mt-4">
+                    <CardHeader className="py-3 border-b border-border">
+                      <CardTitle className="text-sm">Submission Test Cases</CardTitle>
+                    </CardHeader>
+                    <CardContent className="max-h-96 overflow-x-auto overflow-y-auto py-3">
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0 bg-secondary/50">
+                          <tr className="border-b border-border">
+                            <th className="text-left px-3 py-2 font-semibold">Test</th>
+                            <th className="text-left px-3 py-2 font-semibold">Status</th>
+                            <th className="text-left px-3 py-2 font-semibold">Input</th>
+                            <th className="text-left px-3 py-2 font-semibold">Expected</th>
+                            <th className="text-left px-3 py-2 font-semibold">Got</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {testResults.map((result, idx) => (
+                            <tr key={idx} className="border-b border-border/60 hover:bg-secondary/20">
+                              <td className="px-3 py-2 font-medium">#{idx + 1}</td>
+                              <td className="px-3 py-2">
+                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${result.passed ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-500/20 text-red-700 dark:text-red-400'}`}>
+                                  {result.passed ? '✓ Pass' : '✗ Fail'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 font-mono text-muted-foreground truncate max-w-xs">{result.input || '-'}</td>
+                              <td className="px-3 py-2 font-mono text-muted-foreground truncate max-w-xs">{result.expected || '-'}</td>
+                              <td className={`px-3 py-2 font-mono truncate max-w-xs ${result.passed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {result.output || result.error || '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </Panel>
 

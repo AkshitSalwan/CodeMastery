@@ -360,11 +360,14 @@ nums2.length == n
       }
     ],
     test_cases: [
-      { input: '1 2 3 0 0 0\n3\n2 5 6\n3', output: '1 2 2 3 5 6' }
-    ],
-    hidden_test_cases: [
+      { input: '1 2 3 0 0 0\n3\n2 5 6\n3', output: '1 2 2 3 5 6' },
       { input: '1\n1\n\n0', output: '1' },
       { input: '0\n0\n1\n1', output: '1' }
+    ],
+    hidden_test_cases: [
+      { input: '4 5 6 0 0 0\n3\n1 2\n2', output: '1 2 4 5 6' },
+      { input: '1 2 3 0 0 0\n3\n2 5 6\n3', output: '1 2 2 3 5 6' },
+      { input: '1 0 0\n1\n2 3\n2', output: '1 2 3' }
     ],
     starter_code: {
       javascript: `const lines = require('fs').readFileSync('/dev/stdin', 'utf8').trim().split('\\n');
@@ -449,6 +452,96 @@ int main() {
 }`
     },
     points: 100
+  },
+  {
+    title: 'Longest Substring Without Repeating Characters',
+    slug: 'longest-substring-without-repeating-characters',
+    description: `Given a string s, find the length of the longest substring without repeating characters.`,
+    difficulty: 'medium',
+    topic_id: 1,
+    tags: ['string', 'sliding-window', 'hash-table'],
+    constraints: `0 <= s.length <= 5 * 10^4
+s consists of English letters, digits, symbols and spaces.`,
+    examples: [
+      {
+        input: 's = "abcabcbb"',
+        output: '3',
+        explanation: 'The answer is "abc", with the length of 3.'
+      },
+      {
+        input: 's = "bbbbb"',
+        output: '1',
+        explanation: 'The answer is "b", with the length of 1.'
+      },
+      {
+        input: 's = "pwwkew"',
+        output: '3',
+        explanation: 'The answer is "wke", with the length of 3.'
+      }
+    ],
+    test_cases: [
+      { input: 'abcabcbb', output: '3' },
+      { input: 'bbbbb', output: '1' },
+      { input: 'pwwkew', output: '3' }
+    ],
+    hidden_test_cases: [
+      { input: '', output: '0' },
+      { input: 'au', output: '2' },
+      { input: 'dvdf', output: '3' },
+      { input: 'aab', output: '2' },
+      { input: 'abcabcbb', output: '3' }
+    ],
+    starter_code: {
+      javascript: `const s = require('fs').readFileSync('/dev/stdin', 'utf8').trim();
+
+function lengthOfLongestSubstring(s) {
+    // Your code here
+    return 0;
+}
+
+console.log(lengthOfLongestSubstring(s));`,
+      python: `import sys
+s = sys.stdin.read().strip()
+
+def lengthOfLongestSubstring(s):
+    # Your code here
+    return 0
+
+print(lengthOfLongestSubstring(s))`,
+      java: `import java.util.*;
+
+public class Main {
+    public static int lengthOfLongestSubstring(String s) {
+        // Your code here
+        return 0;
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        String s = sc.nextLine().trim();
+        System.out.println(lengthOfLongestSubstring(s));
+    }
+}`,
+      cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+int lengthOfLongestSubstring(string s) {
+    // Your code here
+    return 0;
+}
+
+int main() {
+    string s;
+    getline(cin, s);
+    cout << lengthOfLongestSubstring(s) << endl;
+    return 0;
+}`
+    },
+    points: 200,
+    hints: [
+      'Use a sliding window approach to track the longest substring.',
+      'Keep track of character indices in a hash map.'
+    ]
   },
   // Linked Lists problems
   {

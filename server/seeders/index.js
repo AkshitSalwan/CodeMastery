@@ -139,6 +139,118 @@ const topicsData = [
       { title: 'Microservices', duration: '6 hours' },
       { title: 'Case Studies', duration: '15 hours' }
     ]
+  },
+  {
+    name: 'Strings',
+    slug: 'strings',
+    description: 'Master string algorithms, pattern matching, and text processing techniques.',
+    difficulty: 'beginner',
+    estimated_time: 12,
+    tags: ['strings', 'algorithms', 'text-processing'],
+    icon: 'text_fields',
+    color: '#00BCD4',
+    roadmap: [
+      { title: 'String Basics', duration: '2 hours' },
+      { title: 'String Operations', duration: '3 hours' },
+      { title: 'Pattern Matching', duration: '3 hours' },
+      { title: 'Regular Expressions', duration: '4 hours' }
+    ]
+  },
+  {
+    name: 'Sorting',
+    slug: 'sorting',
+    description: 'Learn and implement various sorting algorithms and their time/space complexities.',
+    difficulty: 'intermediate',
+    estimated_time: 10,
+    tags: ['sorting', 'algorithms', 'fundamentals'],
+    icon: 'sort',
+    color: '#4CAF50',
+    roadmap: [
+      { title: 'Basic Sorting Algorithms', duration: '3 hours' },
+      { title: 'Advanced Sorting', duration: '3 hours' },
+      { title: 'Sorting Analysis', duration: '2 hours' },
+      { title: 'Custom Sorting', duration: '2 hours' }
+    ]
+  },
+  {
+    name: 'Hash Tables',
+    slug: 'hash-tables',
+    description: 'Understand hash functions, collision handling, and hash table operations.',
+    difficulty: 'beginner',
+    estimated_time: 8,
+    tags: ['hash-tables', 'data-structures', 'fundamentals'],
+    icon: 'storage',
+    color: '#FF6F00',
+    roadmap: [
+      { title: 'Hash Functions', duration: '2 hours' },
+      { title: 'Collision Resolution', duration: '2 hours' },
+      { title: 'Hash Table Operations', duration: '2 hours' },
+      { title: 'Applications', duration: '2 hours' }
+    ]
+  },
+  {
+    name: 'Stacks & Queues',
+    slug: 'stacks-queues',
+    description: 'Explore stack and queue data structures with real-world applications.',
+    difficulty: 'intermediate',
+    estimated_time: 10,
+    tags: ['stacks', 'queues', 'data-structures'],
+    icon: 'inbox',
+    color: '#2196F3',
+    roadmap: [
+      { title: 'Stack Basics', duration: '2 hours' },
+      { title: 'Queue Basics', duration: '2 hours' },
+      { title: 'Advanced Operations', duration: '2 hours' },
+      { title: 'Real-world Applications', duration: '4 hours' }
+    ]
+  },
+  {
+    name: 'Greedy',
+    slug: 'greedy',
+    description: 'Learn greedy algorithms and when to apply them for optimal solutions.',
+    difficulty: 'intermediate',
+    estimated_time: 12,
+    tags: ['algorithms', 'greedy', 'optimization'],
+    icon: 'trending_up',
+    color: '#4CAF50',
+    roadmap: [
+      { title: 'Greedy Fundamentals', duration: '2 hours' },
+      { title: 'Proof Techniques', duration: '2 hours' },
+      { title: 'Classic Problems', duration: '4 hours' },
+      { title: 'Advanced Greedy', duration: '4 hours' }
+    ]
+  },
+  {
+    name: 'Math',
+    slug: 'math',
+    description: 'Explore mathematical algorithms and number theory for competitive programming.',
+    difficulty: 'intermediate',
+    estimated_time: 15,
+    tags: ['math', 'number-theory', 'algorithms'],
+    icon: 'calculate',
+    color: '#673AB7',
+    roadmap: [
+      { title: 'Number Theory Basics', duration: '3 hours' },
+      { title: 'Prime Numbers', duration: '3 hours' },
+      { title: 'Modular Arithmetic', duration: '3 hours' },
+      { title: 'Combinatorics', duration: '6 hours' }
+    ]
+  },
+  {
+    name: 'Bit Manipulation',
+    slug: 'bit-manipulation',
+    description: 'Master bit operations, bit manipulation tricks, and bitwise algorithms.',
+    difficulty: 'advanced',
+    estimated_time: 10,
+    tags: ['bit-manipulation', 'algorithms', 'low-level'],
+    icon: 'settings_backup_restore',
+    color: '#F44336',
+    roadmap: [
+      { title: 'Bit Basics', duration: '2 hours' },
+      { title: 'Bitwise Operations', duration: '2 hours' },
+      { title: 'Bit Manipulation Tricks', duration: '3 hours' },
+      { title: 'Advanced Techniques', duration: '3 hours' }
+    ]
   }
 ];
 
@@ -369,8 +481,8 @@ nums2.length == n
     ],
     hidden_test_cases: [
       { input: '4 5 6 0 0 0\n3\n1 2\n2', output: '1 2 4 5 6' },
-      { input: '1 2 3\n3\n2 5 6\n3', output: '1 2 2 3 5 6' },
-      { input: '1\n0\n2\n1', output: '1 2' }
+      { input: '1 2 3 0 0 0\n3\n2 5 6\n3', output: '1 2 2 3 5 6' },
+      { input: '1 0 0\n1\n2 3\n2', output: '1 2 3' }
     ],
     starter_code: {
       javascript: `const lines = require('fs').readFileSync('/dev/stdin', 'utf8').trim().split('\\n');
@@ -455,6 +567,96 @@ int main() {
 }`
     },
     points: 100
+  },
+  {
+    title: 'Longest Substring Without Repeating Characters',
+    slug: 'longest-substring-without-repeating-characters',
+    description: `Given a string s, find the length of the longest substring without repeating characters.`,
+    difficulty: 'medium',
+    topic_id: 1,
+    tags: ['string', 'sliding-window', 'hash-table'],
+    constraints: `0 <= s.length <= 5 * 10^4
+s consists of English letters, digits, symbols and spaces.`,
+    examples: [
+      {
+        input: 's = "abcabcbb"',
+        output: '3',
+        explanation: 'The answer is "abc", with the length of 3.'
+      },
+      {
+        input: 's = "bbbbb"',
+        output: '1',
+        explanation: 'The answer is "b", with the length of 1.'
+      },
+      {
+        input: 's = "pwwkew"',
+        output: '3',
+        explanation: 'The answer is "wke", with the length of 3.'
+      }
+    ],
+    test_cases: [
+      { input: 'abcabcbb', output: '3' },
+      { input: 'bbbbb', output: '1' },
+      { input: 'pwwkew', output: '3' }
+    ],
+    hidden_test_cases: [
+      { input: '', output: '0' },
+      { input: 'au', output: '2' },
+      { input: 'dvdf', output: '3' },
+      { input: 'aab', output: '2' },
+      { input: 'abcabcbb', output: '3' }
+    ],
+    starter_code: {
+      javascript: `const s = require('fs').readFileSync('/dev/stdin', 'utf8').trim();
+
+function lengthOfLongestSubstring(s) {
+    // Your code here
+    return 0;
+}
+
+console.log(lengthOfLongestSubstring(s));`,
+      python: `import sys
+s = sys.stdin.read().strip()
+
+def lengthOfLongestSubstring(s):
+    # Your code here
+    return 0
+
+print(lengthOfLongestSubstring(s))`,
+      java: `import java.util.*;
+
+public class Main {
+    public static int lengthOfLongestSubstring(String s) {
+        // Your code here
+        return 0;
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        String s = sc.nextLine().trim();
+        System.out.println(lengthOfLongestSubstring(s));
+    }
+}`,
+      cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+int lengthOfLongestSubstring(string s) {
+    // Your code here
+    return 0;
+}
+
+int main() {
+    string s;
+    getline(cin, s);
+    cout << lengthOfLongestSubstring(s) << endl;
+    return 0;
+}`
+    },
+    points: 200,
+    hints: [
+      'Use a sliding window approach to track the longest substring.',
+      'Keep track of character indices in a hash map.'
+    ]
   },
   // Linked Lists problems
   {
@@ -1563,13 +1765,13 @@ A subarray is a contiguous part of the array. In a circular array, a subarray ma
     
     # Write your code here
     return 0`,
-      java: `public class Solution {
-    public int maxSubarraySumCircular(int[] nums) {
+      java: `public class Main {
+    public static int maxSubarraySumCircular(int[] nums) {
         // Write your code here
         return 0;
     }
     
-    private int maxSubarray(int[] nums) {
+    private static int maxSubarray(int[] nums) {
         int maxSum = nums[0], sum = nums[0];
         for (int i = 1; i < nums.length; i++) {
             sum = Math.max(nums[i], sum + nums[i]);
@@ -1578,13 +1780,23 @@ A subarray is a contiguous part of the array. In a circular array, a subarray ma
         return maxSum;
     }
     
-    private int minSubarray(int[] nums) {
+    private static int minSubarray(int[] nums) {
         int minSum = nums[0], sum = nums[0];
         for (int i = 1; i < nums.length; i++) {
             sum = Math.min(nums[i], sum + nums[i]);
             minSum = Math.min(minSum, sum);
         }
         return minSum;
+    }
+
+    public static void main(String[] args) {
+        java.util.Scanner sc = new java.util.Scanner(System.in);
+        String line = sc.nextLine().trim();
+        line = line.replace("[", "").replace("]", "");
+        String[] parts = line.split(",");
+        int[] nums = new int[parts.length];
+        for (int i = 0; i < parts.length; i++) nums[i] = Integer.parseInt(parts[i].trim());
+        System.out.println(maxSubarraySumCircular(nums));
     }
 }`,
       cpp: `class Solution {
@@ -1621,6 +1833,342 @@ private:
       'Use Kadane algorithm to find both maximum and minimum subarrays',
       'Handle edge case: if all numbers are negative, return the maximum element',
       'The answer is max(maxKadane, totalSum - minKadane)'
+    ]
+  },
+  // JavaScript problems
+  {
+    title: 'JavaScript Fundamentals: Array Methods',
+    slug: 'js-array-methods',
+    description: `Learn and practice JavaScript array methods. Given an array of numbers, apply various array methods like map, filter, reduce to solve problems.`,
+    difficulty: 'easy',
+    topic_id: 6,
+    tags: ['javascript', 'array-methods', 'es6'],
+    constraints: `1 <= array.length <= 100
+-1000 <= numbers <= 1000`,
+    examples: [
+      {
+        input: '1 2 3 4 5',
+        output: 'sum=15 doubled=2,4,6,8,10 evens=2,4',
+        explanation: 'Sum of all numbers, doubled values, and even numbers'
+      }
+    ],
+    test_cases: [
+      { input: '1 2 3 4 5', output: '15,2,4,6,8,10,2,4' }
+    ],
+    hidden_test_cases: [
+      { input: '10 20 30', output: '60,20,40,60,20,30' },
+      { input: '1 2 3', output: '6,2,4,6,2' }
+    ],
+    starter_code: {
+      javascript: `const input = require('fs').readFileSync('/dev/stdin', 'utf8').trim();
+const numbers = input.split(' ').map(Number);
+
+function solveArrayMethods(nums) {
+    // Use map, filter, reduce to solve
+    // Return: [sum, doubled array, even numbers]
+    const sum = nums.reduce((acc, n) => acc + n, 0);
+    const doubled = nums.map(n => n * 2);
+    const evens = nums.filter(n => n % 2 === 0);
+    return \`\${sum},\${doubled.join(',')},\${evens.join(',')}\`;
+}
+
+console.log(solveArrayMethods(numbers));`,
+      python: `numbers = list(map(int, input().split()))
+
+def solveArrayMethods(nums):
+    # Use list comprehensions and built-in functions
+    sum_val = sum(nums)
+    doubled = [n * 2 for n in nums]
+    evens = [n for n in nums if n % 2 == 0]
+    result = f"{sum_val},{','.join(map(str, doubled))},{','.join(map(str, evens))}"
+    return result
+
+print(solveArrayMethods(numbers))`,
+      java: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        String[] parts = sc.nextLine().trim().split(" ");
+        int[] nums = new int[parts.length];
+        for (int i = 0; i < parts.length; i++) nums[i] = Integer.parseInt(parts[i]);
+        
+        int sum = 0;
+        for (int n : nums) sum += n;
+        
+        StringBuilder doubled = new StringBuilder();
+        for (int n : nums) {
+            if (doubled.length() > 0) doubled.append(",");
+            doubled.append(n * 2);
+        }
+        
+        StringBuilder evens = new StringBuilder();
+        for (int n : nums) {
+            if (n % 2 == 0) {
+                if (evens.length() > 0) evens.append(",");
+                evens.append(n);
+            }
+        }
+        
+        System.out.println(sum + "," + doubled + "," + evens);
+    }
+}`,
+      cpp: `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    string line;
+    getline(cin, line);
+    istringstream iss(line);
+    vector<int> nums;
+    int x;
+    while (iss >> x) nums.push_back(x);
+    
+    int sum = 0;
+    for (int n : nums) sum += n;
+    
+    vector<int> doubled, evens;
+    for (int n : nums) {
+        doubled.push_back(n * 2);
+        if (n % 2 == 0) evens.push_back(n);
+    }
+    
+    cout << sum << ",";
+    for (int i = 0; i < doubled.size(); i++) {
+        if (i > 0) cout << ",";
+        cout << doubled[i];
+    }
+    cout << ",";
+    for (int i = 0; i < evens.size(); i++) {
+        if (i > 0) cout << ",";
+        cout << evens[i];
+    }
+    cout << endl;
+    return 0;
+}`
+    },
+    points: 75,
+    hints: [
+      'Use map() to transform array elements',
+      'Use filter() to select elements based on condition',
+      'Use reduce() to calculate aggregate values'
+    ]
+  },
+  {
+    title: 'React: Class vs Functional Components',
+    slug: 'react-components-basics',
+    description: `Design a React component that demonstrates the difference between class and functional components. Implement counter using both approaches.
+
+This is a conceptual problem focusing on React patterns.`,
+    difficulty: 'medium',
+    topic_id: 7,
+    tags: ['react', 'components', 'state-management', 'hooks'],
+    constraints: `React 16.8+ (hooks available)
+Support both class and functional patterns`,
+    examples: [
+      {
+        input: 'Counter app',
+        output: 'FunctionalCounter: onClick => count+1, ClassCounter: onClick => setState(count+1)',
+        explanation: 'Both should handle state and increment on click'
+      }
+    ],
+    test_cases: [
+      { input: 'increment', output: 'functional_hook_state' }
+    ],
+    hidden_test_cases: [
+      { input: 'render', output: 'both_work' }
+    ],
+    starter_code: {
+      javascript: `// Functional Component with Hooks
+import React, { useState } from 'react';
+
+export const FunctionalCounter = () => {
+    const [count, setCount] = useState(0);
+    
+    return (
+        <div>
+            <p>Count: {count}</p>
+            <button onClick={() => setCount(count + 1)}>
+                Increment
+            </button>
+        </div>
+    );
+};
+
+// Class Component
+export class ClassCounter extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { count: 0 };
+    }
+    
+    render() {
+        return (
+            <div>
+                <p>Count: {this.state.count}</p>
+                <button onClick={() => this.setState({ count: this.state.count + 1 })}>
+                    Increment
+                </button>
+            </div>
+        );
+    }
+}`
+    },
+    points: 100,
+    hints: [
+      'Functional components use hooks (useState)',
+      'Class components use state and this.setState',
+      'Modern React favors functional components with hooks',
+      'Both approaches achieve the same goal'
+    ]
+  },
+  {
+    title: 'System Design: URL Shortener',
+    slug: 'system-design-url-shortener',
+    description: `Design a system for shortening URLs like TinyURL or bit.ly.
+
+Requirements:
+- Generate short URLs from long URLs
+- Redirect short URLs to original long URLs
+- Support millions of URLs
+- High availability and fast redirects`,
+    difficulty: 'hard',
+    topic_id: 8,
+    tags: ['system-design', 'scalability', 'database-design', 'caching'],
+    constraints: `Support 1M requests/day
+< 200ms response time
+99.9% availability`,
+    examples: [
+      {
+        input: 'Design URL shortener system',
+        output: 'Hash function, Database, Cache (Redis), Load Balancer, CDN',
+        explanation: 'Key components for a scalable URL shortener'
+      }
+    ],
+    test_cases: [
+      { input: 'explain_architecture', output: 'components_identified' }
+    ],
+    hidden_test_cases: [
+      { input: 'scale_10x', output: 'horizontal_scaling' }
+    ],
+    starter_code: {
+      javascript: `/* System Design: URL Shortener
+   
+Key Components:
+1. API Server - Handle requests
+2. Database - Store mappings
+3. Cache - Redis for hot URLs
+4. Load Balancer - Distribute traffic
+5. CDN - Geographic distribution
+
+Data Model:
+{
+  id: unique_identifier,
+  short_code: "abc123",
+  long_url: "https://example.com/very/long/url",
+  created_at: timestamp,
+  expiration: timestamp,
+  click_count: number
+}
+
+Algorithm:
+1. Generate unique short code using:
+   - Base62 encoding of sequential ID
+   - Or hash(long_url + salt)
+2. Check collision
+3. Store in DB
+4. Cache in Redis
+5. Return short URL
+
+Scaling:
+- Horizontal: Multiple API servers
+- DB: Sharding by short_code hash
+- Cache: Distributed Redis cluster
+- CDN: Pre-warm hot URLs
+*/`
+    },
+    points: 250,
+    hints: [
+      'Use hash functions to generate short codes',
+      'Cache frequently accessed URLs',
+      'Use database sharding for scale',
+      'Implement rate limiting and validation',
+      'Design for redundancy and failover'
+    ]
+  },
+  {
+    title: 'System Design: Real-time Chat Application',
+    slug: 'system-design-chat-app',
+    description: `Design a real-time chat application supporting millions of users.
+
+Requirements:
+- One-to-one and group messaging
+- Real-time message delivery
+- Online/offline status
+- Message persistence
+- Support emoji, files, and media`,
+    difficulty: 'hard',
+    topic_id: 8,
+    tags: ['system-design', 'scalability', 'websocket', 'real-time'],
+    constraints: `Support 100M users
+< 1s message delivery
+99.95% uptime`,
+    examples: [
+      {
+        input: 'Design real-time chat system',
+        output: 'WebSocket, Message Queue, NoSQL DB, Cache, Notification Service',
+        explanation: 'Architecture for scalable real-time chat'
+      }
+    ],
+    test_cases: [
+      { input: 'architecture_components', output: 'all_identified' }
+    ],
+    hidden_test_cases: [
+      { input: 'handle_100m_users', output: 'horizontal_scaling_strategy' }
+    ],
+    starter_code: {
+      javascript: `/* System Design: Real-time Chat Application
+
+Key Components:
+1. WebSocket Server - Persistent connections
+2. Message Queue (Kafka) - Message buffering
+3. Cache (Redis) - User sessions, recent messages
+4. Database (MongoDB) - Message storage
+5. Notification Service - Push notifications
+6. File Storage (S3) - Media/attachments
+
+Architecture:
+- Load Balancer distributes WebSocket connections
+- Each server handles subset of users
+- Redis tracks online users and active connections
+- Kafka ensures message reliability
+- MongoDB stores message history
+
+Message Flow:
+1. Client connects via WebSocket
+2. Server authenticates and stores session in Redis
+3. User sends message
+4. Message pushed to Kafka (for persistence)
+5. Routed to recipient's server
+6. Delivered in real-time
+7. Stored in MongoDB
+8. Notification sent if offline
+
+Scaling Strategies:
+- Horizontal scaling: More WebSocket servers
+- Database: Sharding by user_id
+- Cache: Redis Cluster
+- Message Queue: Kafka partitioning
+- Service mesh for inter-service communication
+*/`
+    },
+    points: 250,
+    hints: [
+      'Use WebSocket for real-time communication',
+      'Implement message queuing for reliability',
+      'Cache user sessions and status',
+      'Design database schema for message querying',
+      'Plan for horizontal scaling from day 1'
     ]
   }
 ];

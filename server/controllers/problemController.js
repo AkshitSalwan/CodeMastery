@@ -5,6 +5,7 @@ import geminiService from '../services/geminiService.js';
 import { cacheService } from '../config/redis.js';
 import { Op } from 'sequelize';
 import languageMap from '../utils/languageMap.js';
+import { compareOutputs } from '../utils/outputComparison.js';
 
 // Get all problems
 export const getAllProblems = asyncHandler(async (req, res) => {
@@ -256,7 +257,7 @@ export const submitSolution = asyncHandler(async (req, res) => {
     try {
       const result = await judge0Service.runJudge(language, code, testCase.input || '');
       
-      const passed = result.stdout?.trim() === testCase.output?.trim();
+      const passed = compareOutputs(result.stdout || '', testCase.output || '');
       if (passed) passedCount++;
       
       results.push({
@@ -366,7 +367,7 @@ export const runCode = asyncHandler(async (req, res) => {
     results.push({
       input: testCase.input,
       actualOutput: actualOutput,
-      passed: actualOutput === expectedOutput.trim(),
+      passed: compareOutputs(actualOutput, expectedOutput),
       runtime: result.time,
       memory: result.memory,
       error: result.stderr || result.compile_output || result.error
