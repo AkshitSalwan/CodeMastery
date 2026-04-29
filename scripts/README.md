@@ -1,8 +1,25 @@
 # Scripts Directory
 
-This directory contains all utility scripts for testing and seeding the CodeMastery platform.
+This directory contains all utility scripts for testing, seeding, and maintenance of the CodeMastery platform.
 
 ## Folder Structure
+
+### `/utils`
+Utility scripts for fixes, debugging, problem management, and initialization.
+
+**See [utils/INDEX.md](./utils/INDEX.md) for complete documentation.**
+
+**Quick Commands:**
+```bash
+# Fix boilerplate code
+node scripts/utils/fix-all-boilerplate.js
+
+# Initialize demo users
+node scripts/utils/INIT_DEMO_USERS.js
+
+# Add new problems
+node scripts/utils/ADD_JOLLY_PROBLEM.js
+```
 
 ### `/test`
 Comprehensive test suite for the entire application.
@@ -36,8 +53,6 @@ Database seeders for initial data setup and testing.
 **Seeders:**
 - `index.js` - Main seeder orchestrator
 - `createAdminUser.js` - Creates initial admin user
-- `INIT_DEMO_USERS.js` - Initializes demo users (if in working directory)
-- `init-auth.js` - Initializes authentication data (if in working directory)
 
 **Running Seeders:**
 ```bash

@@ -67,6 +67,19 @@ CodeMastery is a comprehensive Data Structures & Algorithms (DSA) learning platf
 
 ---
 
+## 📚 Documentation & Guides
+
+All documentation and guides have been organized in the [`guides/`](./guides/INDEX.md) folder for easy navigation.
+
+### Quick Links
+- 🚀 [**Getting Started**](./guides/ADMIN_QUICK_START.md) - Quick setup guide for administrators
+- 🗄️ [**Database Migration**](./guides/MIGRATION_GUIDE.md) - Migrate data from local MySQL to Aiven cloud
+- 📖 [**Complete Documentation**](./guides/INDEX.md) - Browse all available guides
+- 🔑 [**Login Credentials**](./guides/LOGIN_CREDENTIALS.md) - Default test credentials
+- ⚡ [**Quick Reference**](./guides/QUICK_REFERENCE.md) - Common commands and tasks
+
+---
+
 ## 📁 Directory Structure
 
 ```

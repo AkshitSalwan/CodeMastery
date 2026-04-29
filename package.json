@@ -10,7 +10,12 @@
     "build": "vite build",
     "start": "node server/server.js",
     "lint": "eslint .",
-    "seed:sample": "node server/scripts/seedContestsAndTests.js"
+    "seed:sample": "node server/scripts/seedContestsAndTests.js",
+    "migrate:global": "node scripts/seed-global-db-smart.js",
+    "migrate:global-old": "node scripts/seed-global-db.js",
+    "migrate:global-sequelize": "node scripts/seed-global-db-sequelize.js",
+    "migrate:help": "node scripts/cli.js --help",
+    "migrate:list-tables": "node scripts/cli.js --local-only"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.3",
