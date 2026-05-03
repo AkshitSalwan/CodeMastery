@@ -1,5 +1,7 @@
-const OTP_EXPIRY_MS = 10 * 60 * 1000;
-const resetRequests = new Map();
+import { cacheService } from '../config/redis.js';
+
+const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const resetRequests = new Map(); // Fallback for when Redis is unavailable
 
 const maskEmail = (email) => {
   const [localPart = '', domain = ''] = String(email || '').split('@');
@@ -14,19 +16,55 @@ const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 
 const getExpiryDate = () => new Date(Date.now() + OTP_EXPIRY_MS);
 
-const storeOtp = ({ identifier, userId, otp }) => {
+const storeOtp = async ({ identifier, userId, otp }) => {
   const expiresAt = getExpiryDate();
-  resetRequests.set(buildResetKey(identifier), {
+  const key = `otp:${buildResetKey(identifier)}`;
+  const data = {
     userId,
     otp,
     expiresAt: expiresAt.toISOString(),
-  });
+  };
+
+  try {
+    // Try Redis first
+    await cacheService.set(key, data, Math.ceil(OTP_EXPIRY_MS / 1000));
+  } catch (error) {
+    console.warn('Redis OTP storage failed, using memory fallback:', error.message);
+    // Fallback to in-memory storage
+    resetRequests.set(buildResetKey(identifier), data);
+  }
+
   return expiresAt;
 };
 
-const readOtp = (identifier) => resetRequests.get(buildResetKey(identifier)) || null;
+const readOtp = async (identifier) => {
+  const key = `otp:${buildResetKey(identifier)}`;
 
-const clearOtp = (identifier) => {
+  try {
+    // Try Redis first
+    const data = await cacheService.get(key);
+    if (data) {
+      return data;
+    }
+  } catch (error) {
+    console.warn('Redis OTP read failed, trying memory fallback:', error.message);
+  }
+
+  // Fallback to in-memory storage
+  return resetRequests.get(buildResetKey(identifier)) || null;
+};
+
+const clearOtp = async (identifier) => {
+  const key = `otp:${buildResetKey(identifier)}`;
+
+  try {
+    // Try Redis first
+    await cacheService.del(key);
+  } catch (error) {
+    console.warn('Redis OTP clear failed, trying memory fallback:', error.message);
+  }
+
+  // Always clear memory fallback
   resetRequests.delete(buildResetKey(identifier));
 };
 

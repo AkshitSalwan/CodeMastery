@@ -184,6 +184,79 @@ Elara-Regency/
    - Copy the connection string and update your `.env` file
 ---
 
+## ⚡ Redis Verification
+
+This project uses Redis for login rate limiting, password reset OTP storage, and caching authenticated user data.
+
+### 1. Confirm Redis is running
+
+In PowerShell or terminal:
+```bash
+"D:\Program Files\Redis\redis-cli.exe" ping
+```
+Expected response:
+```text
+PONG
+```
+
+### 2. Confirm `.env` is configured
+
+Make sure your `.env` contains:
+```env
+REDIS_URL=redis://localhost:6379
+```
+
+### 3. Check Redis keys in your local instance
+
+Use Redis CLI to inspect keys:
+```bash
+"D:\Program Files\Redis\redis-cli.exe" KEYS '*'
+```
+
+### 4. Test Redis storage for this project
+
+Add sample values:
+```bash
+"D:\Program Files\Redis\redis-cli.exe" SET test:key "Hello from CodeMastery"
+"D:\Program Files\Redis\redis-cli.exe" SET login_attempts:127.0.0.1 2 EX 900
+"D:\Program Files\Redis\redis-cli.exe" SELECT 1
+"D:\Program Files\Redis\redis-cli.exe" SET user:1:email "test@example.com"
+"D:\Program Files\Redis\redis-cli.exe" SET user:1:username "testuser"
+"D:\Program Files\Redis\redis-cli.exe" SELECT 2
+"D:\Program Files\Redis\redis-cli.exe" SET session:abc123 "user_id:1"
+```
+
+### 5. What is stored in each Redis database
+
+- `db0`
+  - `login_attempts:<ip>` — login rate limit counters
+  - `otp:<email>` — password reset one-time codes
+  - `user:<id>` — cached authenticated user objects
+  - `session:<id>` — any session-like cache data if enabled
+
+- `db1`
+  - `user:<id>:email` — example user data stored for caching
+  - `user:<id>:username` — example username data
+
+- `db2`
+  - `session:abc123` — example session-like data
+
+### 6. Verify database usage
+
+Use Redis CLI:
+```bash
+"D:\Program Files\Redis\redis-cli.exe" INFO keyspace
+```
+You should see one or more entries like:
+```text
+# Keyspace
+db0:keys=3,expires=2,avg_ttl=...
+db1:keys=2,expires=0,avg_ttl=0
+db2:keys=1,expires=0,avg_ttl=0
+```
+
+---
+
 ## 🔒 Security Features
 
 - **Password Protection**: All passwords are hashed using bcrypt

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/index.js';
+import { cacheService } from '../config/redis.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 
@@ -48,7 +49,31 @@ const getOrCreateUser = async (req, res, next) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const user = await User.findByPk(req.userId);
+    // Try to get user from cache first
+    let user;
+    try {
+      const cachedUser = await cacheService.get(`user:${req.userId}`);
+      if (cachedUser) {
+        user = cachedUser;
+        // Convert back to User instance for compatibility
+        user = User.build(user);
+      }
+    } catch (cacheError) {
+      console.warn('Cache read failed:', cacheError.message);
+    }
+
+    if (!user) {
+      user = await User.findByPk(req.userId);
+      
+      if (user) {
+        // Cache the user data
+        try {
+          await cacheService.set(`user:${req.userId}`, user.toJSON(), 3600);
+        } catch (cacheError) {
+          console.warn('Cache write failed:', cacheError.message);
+        }
+      }
+    }
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });

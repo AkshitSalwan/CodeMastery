@@ -3,10 +3,35 @@ import { User } from '../models/index.js';
 import { generateToken, requireAuth, getOrCreateUser } from '../middleware/auth.js';
 import { Op, UniqueConstraintError, ValidationError as SequelizeValidationError } from 'sequelize';
 import { clearOtp, generateOtp, isOtpExpired, readOtp, sendOtp, storeOtp } from '../services/passwordResetService.js';
+import { cacheService } from '../config/redis.js';
 
 const router = express.Router();
 
 const isEmailIdentifier = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+
+// Rate limiting middleware for login attempts
+const loginRateLimit = async (req, res, next) => {
+  const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+  const key = `login_attempts:${clientIP}`;
+  
+  try {
+    const attempts = await cacheService.get(key) || 0;
+    
+    if (attempts >= 5) {
+      return res.status(429).json({ 
+        error: 'Too many login attempts. Please try again later.' 
+      });
+    }
+    
+    // Increment attempts
+    await cacheService.set(key, attempts + 1, 900); // 15 minutes expiry
+    next();
+  } catch (error) {
+    // If Redis fails, allow the request
+    console.warn('Rate limiting check failed:', error.message);
+    next();
+  }
+};
 
 // Register route
 router.post('/register', async (req, res) => {
@@ -70,10 +95,11 @@ router.post('/register', async (req, res) => {
 });
 
 // Login route
-router.post('/login', async (req, res) => {
+router.post('/login', loginRateLimit, async (req, res) => {
   try {
     const { email, password } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
 
     // Validation
     if (!normalizedEmail || !password) {
@@ -94,8 +120,22 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    // Reset login attempts on successful login
+    try {
+      await cacheService.del(`login_attempts:${clientIP}`);
+    } catch (error) {
+      console.warn('Failed to reset login attempts:', error.message);
+    }
+
     // Update last login
     await user.update({ last_login: new Date() });
+
+    // Cache user data for faster subsequent requests
+    try {
+      await cacheService.set(`user:${user.id}`, user.toJSON(), 3600); // Cache for 1 hour
+    } catch (error) {
+      console.warn('Failed to cache user data:', error.message);
+    }
 
     // Generate token
     const token = generateToken(user.id);
@@ -127,7 +167,7 @@ router.post('/forgot-password/request-otp', async (req, res) => {
     }
 
     const otp = generateOtp();
-    const expiresAt = storeOtp({
+    const expiresAt = await storeOtp({
       identifier: normalizedIdentifier,
       userId: user.id,
       otp,
@@ -168,13 +208,13 @@ router.post('/forgot-password/reset', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const entry = readOtp(normalizedIdentifier);
+    const entry = await readOtp(normalizedIdentifier);
     if (!entry) {
       return res.status(400).json({ error: 'Request a fresh OTP first' });
     }
 
     if (isOtpExpired(entry)) {
-      clearOtp(normalizedIdentifier);
+      await clearOtp(normalizedIdentifier);
       return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
     }
 
@@ -185,13 +225,13 @@ router.post('/forgot-password/reset', async (req, res) => {
     const user = await User.findOne({ where: { email: normalizedIdentifier } });
 
     if (!user || user.id !== entry.userId) {
-      clearOtp(normalizedIdentifier);
+      await clearOtp(normalizedIdentifier);
       return res.status(404).json({ error: 'Account not found' });
     }
 
     await user.setPassword(trimmedPassword);
     await user.save();
-    clearOtp(normalizedIdentifier);
+    await clearOtp(normalizedIdentifier);
 
     return res.json({
       message: 'Password updated successfully',
