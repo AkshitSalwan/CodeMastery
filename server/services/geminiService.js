@@ -1,4 +1,12 @@
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+const GEMINI_MODEL_CANDIDATES = [
+  process.env.GEMINI_MODEL,
+  'gemini-flash-latest',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+].filter(Boolean);
+let lastGeminiError = '';
 
 /**
  * Call the Gemini API with a prompt
@@ -12,9 +20,13 @@ const callGemini = async (prompt, responseMimeType = 'application/json') => {
     return null;
   }
 
-  try {
+  const errors = [];
+  lastGeminiError = '';
+
+  for (const model of GEMINI_MODEL_CANDIDATES) {
+    try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -33,16 +45,41 @@ const callGemini = async (prompt, responseMimeType = 'application/json') => {
     );
 
     if (!response.ok) {
-      console.error(`Gemini API error: ${response.status} ${response.statusText}`);
-      return null;
+      const errorBody = await response.text().catch(() => '');
+      const lastError = `${model}: ${response.status} ${response.statusText} ${errorBody}`.trim();
+      errors.push(lastError);
+      console.error(`Gemini API error: ${lastError}`);
+      continue;
     }
 
     const data = await response.json();
     return data?.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || null;
   } catch (error) {
-    console.error('Error calling Gemini API:', error.message);
-    return null;
+      const lastError = `${model}: ${error.message}`;
+      errors.push(lastError);
+      console.error('Error calling Gemini API:', lastError);
+    }
   }
+
+  if (errors.length > 0) {
+    lastGeminiError = summarizeGeminiErrors(errors);
+    console.error(`Gemini API failed for all configured models. ${lastGeminiError}`);
+  }
+
+  return null;
+};
+
+const summarizeGeminiErrors = (errors) => {
+  const priorityError =
+    errors.find((error) => error.includes('reported as leaked')) ||
+    errors.find((error) => error.includes('PERMISSION_DENIED')) ||
+    errors.find((error) => error.includes('RESOURCE_EXHAUSTED')) ||
+    errors.find((error) => error.includes('Too Many Requests')) ||
+    errors[errors.length - 1];
+
+  return priorityError
+    .replace(/\s+/g, ' ')
+    .replace(/https:\/\/[^\s"]+/g, (url) => url.replace(/[),.]+$/, ''));
 };
 
 /**
@@ -428,6 +465,85 @@ Keep the explanation concise but useful.`;
 };
 
 /**
+ * Analyze a learner's accepted solution and suggest an optimized approach.
+ * @param {object} params
+ * @returns {Promise<{success: boolean, analysis: object}>}
+ */
+export const analyzeSolutionComplexity = async ({
+  problem,
+  code,
+  language,
+  testResults = [],
+}) => {
+  const examples = Array.isArray(problem?.examples) ? problem.examples : [];
+  const constraints = Array.isArray(problem?.constraints) ? problem.constraints : [];
+
+  const prompt = `You are a senior algorithms mentor. Analyze this accepted coding solution with precision.
+
+Return ONLY valid JSON in this exact shape:
+{
+  "currentTimeComplexity": "Big-O for the submitted code",
+  "currentSpaceComplexity": "Big-O for the submitted code",
+  "suggestedTimeComplexity": "Best practical Big-O for this problem",
+  "suggestedSpaceComplexity": "Space Big-O for the suggested solution",
+  "analysis": "Concise but complete explanation of what the current code does and why its complexity is what it is.",
+  "improvements": [
+    "Specific improvement 1",
+    "Specific improvement 2"
+  ],
+  "optimizedApproach": "Explain the optimized algorithm and the key idea.",
+  "optimizedSolution": "Complete optimized solution in the same language as the user's code.",
+  "notes": [
+    "Any important edge case or trade-off"
+  ]
+}
+
+Rules:
+1. Do not invent constraints. If the exact optimal complexity depends on missing constraints, say so in the analysis.
+2. Keep the optimized solution complete and runnable in the same style as the submitted code.
+3. Compare current complexity against the suggested complexity directly.
+4. Mention both time complexity and space complexity.
+5. Do not include markdown fences in JSON string fields.
+
+Problem:
+Title: ${problem?.title || 'Unknown'}
+Difficulty: ${problem?.difficulty || 'Unknown'}
+Description: ${problem?.description || 'No description provided'}
+Constraints: ${constraints.join(', ') || 'None provided'}
+Examples: ${JSON.stringify(examples.slice(0, 3))}
+Recent passed test results: ${JSON.stringify(testResults.slice(0, 5))}
+
+Language: ${language || 'unknown'}
+Submitted code:
+${code}`;
+
+  const generatedText = await callGemini(prompt, 'text/plain');
+
+  if (!generatedText) {
+    return {
+      success: false,
+      error:
+        lastGeminiError ||
+        'Gemini did not return a response. Check GEMINI_API_KEY, network access, and optionally set GEMINI_MODEL=gemini-flash-latest in .env.',
+    };
+  }
+
+  try {
+    const parsed = parseJsonLikeResponse(generatedText);
+    return {
+      success: true,
+      analysis: normalizeComplexityAnalysis(parsed, language),
+    };
+  } catch (error) {
+    console.error('Failed to parse solution analysis response:', error.message);
+    return {
+      success: false,
+      error: 'Gemini returned a response, but it was not valid JSON. Please try Analyse with AI again.',
+    };
+  }
+};
+
+/**
  * Analyze test cases to understand input/output format
  * @param {array} testCases - Array of test case objects
  * @param {array} examples - Array of example objects
@@ -660,6 +776,43 @@ This ${language || 'program'} processes the given input and produces output acco
 - If performance matters, inspect loops and nested operations to estimate time complexity.`;
 };
 
+const normalizeComplexityAnalysis = (analysis, language) => ({
+  currentTimeComplexity: analysis?.currentTimeComplexity || 'Unable to infer confidently',
+  currentSpaceComplexity: analysis?.currentSpaceComplexity || 'Unable to infer confidently',
+  suggestedTimeComplexity: analysis?.suggestedTimeComplexity || 'Depends on the problem constraints',
+  suggestedSpaceComplexity: analysis?.suggestedSpaceComplexity || 'Depends on the chosen data structures',
+  analysis:
+    analysis?.analysis ||
+    'The submitted code passes the available tests. Review loops, recursion, and auxiliary data structures to confirm the exact complexity.',
+  improvements: Array.isArray(analysis?.improvements) ? analysis.improvements : [],
+  optimizedApproach:
+    analysis?.optimizedApproach ||
+    'Use the most direct algorithm that satisfies the constraints while avoiding unnecessary repeated work.',
+  optimizedSolution:
+    analysis?.optimizedSolution ||
+    `No optimized ${language || 'code'} solution was returned by the AI service.`,
+  notes: Array.isArray(analysis?.notes) ? analysis.notes : [],
+});
+
+const buildFallbackComplexityAnalysis = (language) =>
+  normalizeComplexityAnalysis(
+    {
+      analysis:
+        'The submitted code passed the selected tests, but Gemini was unavailable, so only a generic review could be generated.',
+      improvements: [
+        'Check nested loops and repeated scans for avoidable work.',
+        'Use an appropriate data structure such as a hash map, set, heap, or two pointers when it reduces repeated computation.',
+        'Validate edge cases from the constraints before final submission.',
+      ],
+      optimizedApproach:
+        'Start from the brute-force idea, identify the repeated computation, then cache, index, sort, or use two pointers depending on the problem shape.',
+      optimizedSolution:
+        `Gemini did not return an optimized ${language || 'language'} solution. Please try Analyse with AI again.`,
+      notes: ['Complexity could not be verified without an AI response.'],
+    },
+    language
+  );
+
 /**
  * Generate a complete problem specification
  * @param {object} problemData - Partial problem data
@@ -700,6 +853,7 @@ export default {
   generateHints,
   generateSolutionExplanation,
   explainCode,
+  analyzeSolutionComplexity,
   generateStarterCode,
   generateCompleteProblemSpec,
   callGemini,

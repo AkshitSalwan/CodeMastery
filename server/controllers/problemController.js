@@ -486,6 +486,33 @@ export const explainCode = asyncHandler(async (req, res) => {
   res.json({ explanation: result.text });
 });
 
+// Analyze accepted code complexity and suggest an optimized solution
+export const analyzeSolution = asyncHandler(async (req, res) => {
+  const { problem_id, code, language, testResults } = req.body;
+
+  if (!code || !language) {
+    throw new ValidationError('Code and language are required for AI analysis');
+  }
+
+  const problem = problem_id ? await Problem.findByPk(problem_id) : null;
+  if (problem_id && !problem) {
+    throw new NotFoundError('Problem');
+  }
+
+  const result = await geminiService.analyzeSolutionComplexity({
+    problem: problem ? problem.toJSON() : {},
+    code,
+    language,
+    testResults: Array.isArray(testResults) ? testResults : [],
+  });
+
+  if (!result.success) {
+    throw new ValidationError(result.error || 'Failed to analyze solution');
+  }
+
+  res.json({ analysis: result.analysis });
+});
+
 export default {
   getAllProblems,
   getProblemBySlug,
@@ -497,5 +524,6 @@ export default {
   getSubmission,
   getUserSubmissions,
   getProblemHints,
-  explainCode
+  explainCode,
+  analyzeSolution
 };

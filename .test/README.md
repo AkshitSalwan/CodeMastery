@@ -1,3 +1,5 @@
+# PUPPETEER COMMAND
+$env:PUPPETEER_HEADLESS='false'; npm run test:e2e:login
 # Jest Testing Setup for CodeMastery
 
 This directory contains comprehensive Jest tests for the CodeMastery application's login and signup functionality, including both unit tests and end-to-end browser tests.

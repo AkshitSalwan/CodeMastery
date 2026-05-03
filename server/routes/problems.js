@@ -28,6 +28,7 @@ router.get('/user/submissions', requireAuth, getOrCreateUser, problemController.
 router.post('/submit', requireAuth, getOrCreateUser, validators.submitCode, validate, problemController.submitSolution);
 router.post('/run', requireAuth, getOrCreateUser, problemController.runCode);
 router.post('/explain', requireAuth, getOrCreateUser, problemController.explainCode);
+router.post('/analyze-solution', requireAuth, getOrCreateUser, problemController.analyzeSolution);
 
 // === PARAMETERIZED ROUTES (evaluated after non-parameterized) ===
 

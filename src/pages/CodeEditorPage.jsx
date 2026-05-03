@@ -4,7 +4,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { problems } from '../data/problems';
-import { Play, Copy, RefreshCw, Save, CheckCircle, XCircle, Clock, Zap, AlertCircle } from 'lucide-react';
+import { Play, Copy, RefreshCw, Save, CheckCircle, XCircle, Clock, Zap, AlertCircle, Sparkles } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { DiscussionPanel } from '../components/DiscussionPanel';
 import { mockTestCases } from '../../lib/mock-data/test-cases';
@@ -49,6 +49,9 @@ export function CodeEditorPage() {
   const [customExpectedOutput, setCustomExpectedOutput] = useState('');
   const [customRunResult, setCustomRunResult] = useState(null);
   const [runnerMode, setRunnerMode] = useState('sample'); // 'sample' or 'custom'
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState('');
   const editorRef = useRef(null);
 
   const normalizeProblemData = (rawProblem) => {
@@ -167,6 +170,11 @@ export function CodeEditorPage() {
     }
   }, [runnerMode]);
 
+  useEffect(() => {
+    setAiAnalysis(null);
+    setAnalysisError('');
+  }, [code, language, problem?.id]);
+
   // Use built-in mock test cases for core problems when explicit testCases are not defined
   // Handle both API format (test_cases) and static format (testCases)
   const effectiveTestCases = problem?.testCases?.length
@@ -182,6 +190,9 @@ export function CodeEditorPage() {
 
   // Only show a small set of sample test cases (no hidden tests)
   const displayedTestCases = normalizedTestCases.slice(0, 2);
+  const sampleTestsPassed = !isSubmitted && testResults.length > 0 && testResults.every((result) => result.passed === true);
+  const customRunPassed = customRunResult?.passed === true;
+  const canAnalyzeWithAI = submissionStatus === 'accepted' || sampleTestsPassed || customRunPassed;
 
   const monacoLanguageMap = {
     javascript: 'javascript',
@@ -267,6 +278,11 @@ export function CodeEditorPage() {
   };
 
   const handleRun = async () => {
+    if (runnerMode === 'sample') {
+      await handleRunTestCases();
+      return;
+    }
+
     const trimmedCode = code.trim();
 
     // No code written
@@ -277,6 +293,8 @@ export function CodeEditorPage() {
 
     setIsRunning(true);
     setOutput('Running code on Judge0...');
+    setAiAnalysis(null);
+    setAnalysisError('');
 
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -356,6 +374,8 @@ export function CodeEditorPage() {
     setIsRunning(true);
     setCustomRunResult(null);
     setOutput('Running custom input on Judge0...');
+    setAiAnalysis(null);
+    setAnalysisError('');
 
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -440,6 +460,8 @@ export function CodeEditorPage() {
 
     setIsRunning(true);
     setTestResults([]);
+    setAiAnalysis(null);
+    setAnalysisError('');
 
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -492,6 +514,17 @@ export function CodeEditorPage() {
 
         console.log('Mapped results:', results);
         setTestResults(results);
+        const passedCount = results.filter((result) => result.passed).length;
+        const details = results
+          .map((result) => {
+            const status = result.passed ? 'PASS' : 'FAIL';
+            return `Test ${result.testNum}: ${status}\nInput: ${result.input}\nExpected: ${result.expected}\nGot: ${result.output || result.error || ''}`;
+          })
+          .join('\n\n');
+        setOutput(
+          `${passedCount === results.length ? 'Accepted' : 'Wrong Answer'}\n\n` +
+          `Passed ${passedCount}/${results.length} sample test cases\n\n${details}`
+        );
         return results;
       } else {
         const errorText = await response.text();
@@ -532,6 +565,8 @@ export function CodeEditorPage() {
     setSubmissionStatus('running');
     setIsRunning(true);
     setOutput('Submitting solution...');
+    setAiAnalysis(null);
+    setAnalysisError('');
 
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -728,6 +763,55 @@ export function CodeEditorPage() {
     }
   };
 
+  const handleAnalyzeWithAI = async () => {
+    if (!canAnalyzeWithAI) {
+      setAnalysisError('Run your code successfully before requesting AI analysis.');
+      return;
+    }
+
+    if (!code.trim()) {
+      setAnalysisError('There is no code to analyze.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisError('');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const response = await fetch(`${API_BASE}/api/problems/analyze-solution`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          problem_id: problem?.id,
+          code: code.trim(),
+          language,
+          testResults: testResults.length > 0 ? testResults : customRunResult ? [customRunResult] : [],
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        let message = errText || 'Unable to analyze the solution.';
+        try {
+          const parsed = JSON.parse(errText);
+          message = parsed.error || parsed.message || message;
+        } catch {
+          // Keep the raw response text.
+        }
+        throw new Error(message);
+      }
+
+      const data = await response.json();
+      setAiAnalysis(data.analysis);
+    } catch (error) {
+      console.error('AI analysis error:', error);
+      setAnalysisError(error?.message || 'Unable to analyze the solution.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
     alert('Code copied to clipboard!');
@@ -769,6 +853,8 @@ export function CodeEditorPage() {
     setCustomInput('');
     setCustomExpectedOutput('');
     setCustomRunResult(null);
+    setAiAnalysis(null);
+    setAnalysisError('');
   };
 
   return (
@@ -949,6 +1035,75 @@ export function CodeEditorPage() {
                   </Card>
                 )}
 
+                {canAnalyzeWithAI && (
+                  <Card>
+                    <CardHeader className="py-3 border-b border-border">
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          AI Complexity Analysis
+                        </CardTitle>
+                        <Button size="sm" variant="outline" onClick={handleAnalyzeWithAI} disabled={isAnalyzing}>
+                          <Sparkles className="h-4 w-4 mr-1" />
+                          {isAnalyzing ? 'Analysing...' : 'Analyse with AI'}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    {(analysisError || aiAnalysis) && (
+                      <CardContent className="max-h-96 overflow-y-auto py-3 space-y-3 text-sm">
+                        {analysisError && (
+                          <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-red-700 dark:text-red-300">
+                            {analysisError}
+                          </div>
+                        )}
+
+                        {aiAnalysis && (
+                          <>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <div className="rounded-md border border-border bg-secondary/20 p-3">
+                                <p className="text-xs font-semibold text-muted-foreground">Current Code</p>
+                                <p className="font-mono text-xs text-foreground">Time: {aiAnalysis.currentTimeComplexity}</p>
+                                <p className="font-mono text-xs text-foreground">Space: {aiAnalysis.currentSpaceComplexity}</p>
+                              </div>
+                              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
+                                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Suggested Target</p>
+                                <p className="font-mono text-xs text-foreground">Time: {aiAnalysis.suggestedTimeComplexity}</p>
+                                <p className="font-mono text-xs text-foreground">Space: {aiAnalysis.suggestedSpaceComplexity}</p>
+                              </div>
+                            </div>
+
+                            <div>
+                              <p className="font-semibold text-foreground mb-1">Analysis</p>
+                              <p className="text-muted-foreground whitespace-pre-wrap">{aiAnalysis.analysis}</p>
+                            </div>
+
+                            {aiAnalysis.improvements?.length > 0 && (
+                              <div>
+                                <p className="font-semibold text-foreground mb-1">Improvements</p>
+                                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                                  {aiAnalysis.improvements.map((item, index) => (
+                                    <li key={index}>{item}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            <div>
+                              <p className="font-semibold text-foreground mb-1">Optimized Approach</p>
+                              <p className="text-muted-foreground whitespace-pre-wrap">{aiAnalysis.optimizedApproach}</p>
+                            </div>
+
+                            <div>
+                              <p className="font-semibold text-foreground mb-1">Optimized Solution</p>
+                              <pre className="max-h-72 overflow-auto rounded-md bg-secondary/30 p-3 text-xs text-foreground whitespace-pre-wrap">{aiAnalysis.optimizedSolution}</pre>
+                            </div>
+                          </>
+                        )}
+                      </CardContent>
+                    )}
+                  </Card>
+                )}
+
                 {/* Mode toggle */}
                 <div className="flex items-center gap-2">
                   <button
@@ -1058,7 +1213,19 @@ export function CodeEditorPage() {
                 {/* Output */}
                 <Card className="flex-1 flex flex-col">
                   <CardHeader className="py-3 border-b border-border">
-                    <CardTitle className="text-sm">Console Output</CardTitle>
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-sm">Console Output</CardTitle>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAnalyzeWithAI}
+                        disabled={!canAnalyzeWithAI || isAnalyzing}
+                        title={canAnalyzeWithAI ? 'Analyze the accepted solution' : 'Pass the tests first'}
+                      >
+                        <Sparkles className="h-4 w-4 mr-1" />
+                        {isAnalyzing ? 'Analysing...' : 'Analyse with AI'}
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto py-3">
                     {output ? (
